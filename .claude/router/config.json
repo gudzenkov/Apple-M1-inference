@@ -1,0 +1,94 @@
+{
+  "LOG": true,
+  "HOST": "127.0.0.1",
+  "PORT": 8080,
+  "APIKEY": "${CCR_APIKEY}",
+  "API_TIMEOUT_MS": 600000,
+  "Providers": [
+    {
+      "name": "ollama",
+      "api_base_url": "http://localhost:11434/v1/chat/completions",
+      "api_key": "ollama",
+      "models": [
+        "SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL",
+        "ukjin/Qwen3-30B-A3B-Thinking-2507-Deepseek-v3.1-Distill:4b",
+        "sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M",
+        "qwen3.5:9b"
+      ],
+      "transformer": {
+        "SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL": {
+          "use": [
+            "enhancetool"
+          ]
+        }
+      }
+    },
+    {
+      "name": "mlx-local",
+      "api_base_url": "http://localhost:8000/v1/chat/completions",
+      "api_key": "mlx",
+      "models": [
+        "mlx-community/Qwen3.5-9B-OptiQ-4bit",
+        "mlx-community/Qwen3.5-27B-4bit"
+      ],
+      "transformer": {
+        "use": [
+          "OpenAI",
+          "maxcompletiontokens"
+        ]
+      }
+    }
+  ],
+  "StatusLine": {
+    "enabled": true,
+    "currentStyle": "powerline",
+    "default": {
+      "modules": []
+    },
+    "powerline": {
+      "modules": [
+        {
+          "type": "model",
+          "icon": "🤖",
+          "text": "{{model}}",
+          "color": "bright_yellow"
+        },
+        {
+          "type": "workDir",
+          "icon": "󰉋",
+          "text": "{{workDirName}}",
+          "color": "bright_blue"
+        },
+        {
+          "type": "script",
+          "icon": "📜",
+          "text": "Script Module",
+          "color": "bright_cyan",
+          "scriptPath": ""
+        },
+        {
+          "type": "gitBranch",
+          "icon": "🌿",
+          "text": "{{gitBranch}}",
+          "color": "bright_green"
+        },
+        {
+          "type": "usage",
+          "icon": "📊",
+          "text": "{{inputTokens}} → {{outputTokens}}",
+          "color": "bright_magenta"
+        }
+      ]
+    },
+    "fontFamily": "Hack Nerd Font Mono"
+  },
+  "Router": {
+    "default": "ollama,SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL",
+    "background": "qwen3.5:9b",
+    "think": "ollama,sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M",
+    "longContext": "ollama,sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M",
+    "longContextThreshold": 60000,
+    "webSearch": "qwen3.5:9b"
+  },
+  "NON_INTERACTIVE_MODE": false
+}

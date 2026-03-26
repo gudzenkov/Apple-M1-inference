@@ -1,0 +1,24 @@
+{
+  "$version": 3,
+  "env": {
+    "LOCAL_LLM_API_KEY": "local"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "local-qwen35-9b-optiq",
+        "name": "local-qwen35-9b-optiq",
+        "baseUrl": "http://127.0.0.1:8080/v1",
+        "envKey": "LOCAL_LLM_API_KEY",
+        "generationConfig": {
+          "contextWindowSize": 32768,
+          "samplingParams": {
+            "temperature": 0.2,
+            "max_tokens": 2048
+          }
+        }
+      }
+    ]
+  },
+  "model": "local-qwen35-9b-optiq"
+}
