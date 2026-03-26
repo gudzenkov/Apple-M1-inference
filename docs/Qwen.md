@@ -1,125 +1,56 @@
-# Qwen
+# Qwen Models & Inference
 
-## Models
-**Models**:
-  - mlx-community/Qwen3.5-9B-OptiQ-4bit
-  - mlx-community/Qwen3.5-27B-4bit
-**Context:** 262144 tokens (256K)
-**Memory:** ~8-10GB for model + ~20-30GB for 256K context
+## Model lineup
+| Model | Parameters | Quantization | Approx RAM (256K) |
+|------------------------------|------------|--------------|--------------------|
+| mlx-community/Qwen3.5-9B-OptiQ-4bit | 9B | 4-bit OptiQ | ~8–10 GB + 20–22 GB context |
+| mlx-community/Qwen3.5-27B-4bit | 27B | 4-bit OptiQ | ~20–25 GB + 20–25 GB context |
 
-## TurboQuant KV Cache Compression
+All models support 262144 tokens (256K) when the server (MLX or Optiq) is started with the matching context length. See `docs/MLX.md` for runbook-level server commands and `docs/IDEs/QwenCode.md` for connecting QwenCode once the endpoint is live.
 
-OptiQ models support **TurboQuant KV cache compression** for better long-context performance via `mlx-optiq`.
+## TurboQuant KV cache compression
 
-### Installation
-Requirements: `mlx-lm >= 0.30.7` (for Qwen3.5 architecture support)
+OptiQ models can leverage `mlx-optiq` to compress the KV cache to roughly 1/5 of the size while maintaining long-context accuracy. This keeps 256K context affordable on 27B models.
 
-```bash
-uv pip install "mlx-lm>=0.30.7"
-uv pip install mlx-optiq
-```
+- Install requirements:
+  ```bash
+  uv pip install "mlx-lm>=0.30.7" mlx-optiq
+  ```
+- Use the custom FastAPI wrapper in `src/mlx-openai-optiq-server` (or the bundled Docker image) to initialize the cache with `TurboQuantKVCache` per attention layer.
+- When you need the TurboQuant benefits, prefer the `/v1/chat/completions` endpoint on port 8080 (the Optiq server) and let the wrapper manage `seed+bits` per layer.
 
-### Benefits
-- **4.9x smaller KV cache** with 3.5-bit compression
-- Near-zero accuracy loss on long-context benchmarks
-- Reduced memory footprint for 256K context workflows
+## Qwen+MLX inference flows
 
-## Qwen Code + MLX + TurboQuant Setup
+### General MLX server (`mlx-openai-server`)
+- Default server for most experiments.
+- Launch with `--context-length 262144` and `--max-tokens`/`--temperature` overrides as needed.
+- Good for workloads that simply need OpenAI-compatible chat completions without TurboQuant caching.
 
-The correct setup for Qwen Code with MLX and TurboQuant KV cache:
+### TurboQuant-aware Optiq server (`mlx-openai-optiq-server`)
+- Local Python script or `docker compose up -d` will start an endpoint on port 8080 that keeps 256K context in RAM while applying the TurboQuant cache.
+- Every request reuses the same quantized cache object, so warm-up is fast after the first prompt and memory stays closer to the 9B footprint.
+- The endpoint mirrors `/v1/chat/completions` and `/v1/models`, so any OpenAI client works.
 
-**mlx-community/Qwen3.5-9B-OptiQ-4bit + mlx-optiq + custom OpenAI-compatible FastAPI wrapper**
+Switch between the two by changing the base URL in your IDE or tooling. `docs/IDEs/QwenCode.md` explains how to map both servers to QwenCode, while `docs/IDEs/OpenCode.md` covers the OpenCode providers.
 
-### Option 1: Docker (Recommended)
+## Inference parameters
 
-**Build and run:**
-```bash
-cd ~/code/Agents/LocalFirst
-docker compose up -d --build
-```
+Pick the right sampling profile for the task:
+- **Thinking (general):** `temperature=1.0`, `top_p=0.95`, `top_k=20`, `presence_penalty=1.5`, `repetition_penalty=1.0`.
+- **Precise coding (WebDev, CLI):** `temperature=0.6`, `top_p=0.95`, `top_k=20`, `presence_penalty=0.0`, `repetition_penalty=1.0`.
+- **Instruct/general tasks:** `temperature=0.7`, `top_p=0.8`, `top_k=20`, `presence_penalty=1.5`, `repetition_penalty=1.0`.
+- **Reasoning-heavy instruct:** `temperature=1.0`, `top_p=0.95`, `top_k=20`, `presence_penalty=1.5`, `repetition_penalty=1.0`.
 
-**View logs:**
-```bash
-docker logs -f mlx-optiq-server
-```
-
-**Stop server:**
-```bash
-docker compose down
-```
-
-**Environment variables:**
-```bash
-# Optional: Set in .env or pass directly
-export HUGGINGFACE_MODEL=mlx-community/Qwen3.5-9B-OptiQ-4bit
-export HF_TOKEN=hf_...  # For faster downloads
-docker compose up -d
-```
-
-### Option 2: Local Python
-
-```bash
-cd ~/code/Agents/LocalFirst
-source .venv/bin/activate
-python src/mlx-openai-optiq-server/mlx-openai-optiq-server.py
-```
-
-See `src/mlx-openai-optiq-server/` for the custom FastAPI wrapper that enables TurboQuantKVCache.
-
-### 2. Configure Qwen Code
-
-Qwen Code supports OpenAI-compatible endpoints via `~/.qwen/settings.json`.
-
-#### Config provision
-```bash
-cp .qwen/settings.json ~/.qwen/settings.json
-```
-
-#### Manual setup
-**Settings → AI → Custom Provider:**
-- **Name:** `MLX TurboQuant`
-- **Base URL:** `http://127.0.0.1:8080/v1`
-- **API Key:** `mlx-local` (any value works)
-- **Model ID:** `mlx-community/Qwen3.5-9B-OptiQ-4bit`
-
-### 3. Verify Connection
-
-```bash
-curl http://127.0.0.1:8080/v1/models
-curl http://127.0.0.1:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "mlx-community/Qwen3.5-9B-OptiQ-4bit",
-    "messages": [{"role": "user", "content": "Hello!"}],
-    "max_tokens": 50
-  }'
-```
-
-## Alternative: Standard MLX Server (No TurboQuant)
-
-For non-TurboQuant usage with `mlx-openai-server`:
-
-```bash
-export HUGGINGFACE_MODEL=mlx-community/Qwen3.5-9B-OptiQ-4bit
-export CONTEXT_LENGTH=262144
-
-mlx-openai-server launch \
-  --model-path "$HUGGINGFACE_MODEL" \
-  --model-type lm \
-  --port 8000 \
-  --host 0.0.0.0 \
-  --context-length "$CONTEXT_LENGTH"
-```
-
-**Note:** `mlx-openai-server` does not support TurboQuant KV cache configuration.
-
-## Inference params
-- Thinking mode for general tasks: temperature=1.0, top_p=0.95, top_k=20, min_p=0.0, presence_penalty=1.5, repetition_penalty=1.0
-- Thinking mode for precise coding tasks (e.g. WebDev): temperature=0.6, top_p=0.95, top_k=20, min_p=0.0, presence_penalty=0.0, repetition_penalty=1.0
-- Instruct (or non-thinking) mode for general tasks: temperature=0.7, top_p=0.8, top_k=20, min_p=0.0, presence_penalty=1.5, repetition_penalty=1.0
-- Instruct (or non-thinking) mode for reasoning tasks: temperature=1.0, top_p=0.95, top_k=20, min_p=0.0, presence_penalty=1.5, repetition_penalty=1.0
+Adjust `max_tokens` per prompt (a default of 1024 works for most completions) and include `stream=true` if your client supports streaming.
 
 ## Tips
-- Keep the server running in background while using Qwen Code
-- Use `tail -f /tmp/mlx-server.log` to monitor requests
-- For best coding performance, set temperature to 0.6
+
+- Keep the MLX/Optiq server running during QwenCode sessions and tail `/tmp/mlx-server.log` or `docker logs mlx-optiq-server` for request visibility.
+- Use `curl http://localhost:8000/v1/models` (MLX server) or `http://localhost:8080/v1/models` (Optiq server) to sanity-check readiness before opening an IDE.
+- The TurboQuant server uses a fixed seed per layer to keep compression deterministic; avoid restarting the process too frequently if you need consistent caches.
+
+## Resources
+
+- `docs/MLX.md` – server launch commands, monitoring, troubleshooting.
+- `docs/IDEs/QwenCode.md` / `OpenCode.md` / `CCR.md` – connect IDEs to the local endpoints.
+- `docs/benchmark.md` – performance metrics for MLX, Optiq, and Ollama runtimes.

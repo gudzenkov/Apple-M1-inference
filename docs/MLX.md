@@ -1,91 +1,318 @@
-# MLX Runbook
+# MLX Metal
 
-Apple Silicon users can unlock the highest-quality Qwen architectures via MLX, with Metal acceleration handled automatically.
+Apple GPU (Metal) is used automatically by MLX for hardware acceleration.
 
-## Prerequisites
+## Table of Contents
+- [Quick Start](#quick-start)
+- [Basic Usage](#basic-usage)
+- [OpenAI-Compatible Server](#openai-compatible-server)
+- [OpenCode Integration](#opencode-integration)
+- [Troubleshooting](#troubleshooting)
 
-1. Create and activate a virtual environment:
-   ```bash
-   uv venv
-   source .venv/bin/activate
-   ```
-2. Install the MLX stack:
-   ```bash
-   uv pip install mlx mlx-lm mlx-openai-server mlx-optiq huggingface_hub
-   ```
-3. (Optional) Export your HuggingFace token and preferred model:
-   ```bash
-   export HF_TOKEN=hf_...
-   export HUGGINGFACE_MODEL=mlx-community/Qwen3.5-9B-OptiQ-4bit
-   ```
+## Quick Start
 
-The model cache lands in `~/.cache/huggingface/hub`; downloads resume automatically when interrupted.
-
-## Basic MLX usage
-
-Use `mlx_lm` for direct runs:
+### 1. Setup Environment
 ```bash
+uv venv
+source .venv/bin/activate
+uv pip install mlx mlx-lm huggingface_hub
+```
+
+**Requirements:**
+- `mlx-lm >= 0.30.7` (for Qwen3.5 architecture support)
+- `mlx-optiq` (optional, for TurboQuant KV cache compression)
+
+See [mlx-community/Qwen3.5-9B-OptiQ-4bit](https://huggingface.co/mlx-community/Qwen3.5-9B-OptiQ-4bit) for model details.
+
+### 2. Configure HuggingFace Token (Recommended)
+For faster downloads and higher rate limits:
+```bash
+# Get token from https://huggingface.co/settings/tokens
+export HF_TOKEN=hf_...
+
+# Set default model
+export HUGGINGFACE_MODEL=mlx-community/Qwen3.5-9B-OptiQ-4bit
+```
+
+## Basic Usage
+
+### Generate Text
+```bash
+# Models auto-download to ~/.cache/huggingface/hub on first use
+# Downloads resume automatically if interrupted
 python -m mlx_lm generate \
   --model mlx-community/Qwen3.5-9B-OptiQ-4bit \
-  --prompt "Explain async/await" \
-  --max-tokens 512 --temp 0.2
+  --prompt "Write a Kotlin coroutine example." \
+  --max-tokens 512 \
+  --temp 0.2
 ```
-The chat helper is identical:
+
+### Interactive Chat
 ```bash
-python -m mlx_lm chat --model mlx-community/Qwen3.5-9B-OptiQ-4bit
+python -m mlx_lm chat \
+  --model mlx-community/Qwen3.5-9B-OptiQ-4bit
 ```
-Need inference tuning or TurboQuant guidance? See `docs/Qwen.md` for model details and sampling presets.
 
-## OpenAI-compatible server
+### Python API
+```python
+from mlx_lm import load, generate
 
-### Standard MLX server (`mlx-openai-server`)
-Launch a server for general OpenAPI workflows on port 8000:
+# Uses cached model from ~/.cache/huggingface/hub
+model, tokenizer = load("mlx-community/Qwen3.5-9B-OptiQ-4bit")
+
+response = generate(
+    model,
+    tokenizer,
+    "Explain vector search briefly.",
+    max_tokens=300
+)
+print(response)
+```
+
+### Monitor Downloads
 ```bash
+# Check cache size
+du -sh ~/.cache/huggingface/hub/models--mlx-community--Qwen3.5-9B-OptiQ-4bit
+
+# Check incomplete files (still downloading)
+ls -lh ~/.cache/huggingface/hub/models--mlx-community--Qwen3.5-9B-OptiQ-4bit/blobs/*.incomplete
+```
+
+## OpenAI-Compatible Server
+
+### Install Server Package
+```bash
+uv pip install mlx-openai-server
+```
+
+### Start Server
+
+**Foreground (see logs in terminal):**
+```bash
+# Activate venv first
+cd ~/code/Agents/LocalFirst
 source .venv/bin/activate
+
+# Start server with 256k context (Ctrl+C to stop)
 mlx-openai-server launch \
   --model-path mlx-community/Qwen3.5-9B-OptiQ-4bit \
   --model-type lm \
-  --port 8000 --host 0.0.0.0 \
+  --port 8000 \
+  --host 0.0.0.0 \
   --context-length 262144
 ```
-Check status:
+
+**Background (recommended for development):**
 ```bash
-curl -s http://localhost:8000/v1/models
+# Activate venv
+cd ~/code/Agents/LocalFirst
+source .venv/bin/activate
+
+# Start in background with 256k context
+nohup mlx-openai-server launch \
+  --model-path mlx-community/Qwen3.5-9B-OptiQ-4bit \
+  --model-type lm \
+  --port 8000 \
+  --host 0.0.0.0 \
+  --context-length 262144 \
+  > /tmp/mlx-server.log 2>&1 &
+
+# View logs
+tail -f /tmp/mlx-server.log
+```
+
+**With custom settings:**
+```bash
+mlx-openai-server launch \
+  --model-path mlx-community/Qwen3.5-9B-OptiQ-4bit \
+  --model-type lm \
+  --port 8000 \
+  --host 0.0.0.0 \
+  --context-length 262144 \
+  --max-tokens 2048 \
+  --temperature 0.7
+```
+
+### Server Management
+
+**Check if server is running:**
+```bash
+# Check process
 ps aux | grep mlx-openai-server | grep -v grep
-```
-Stop and restart with `pkill -f mlx-openai-server` followed by the same launch command.
 
-### TurboQuant Optiq server (`mlx-openai-optiq-server`)
-This FastAPI wrapper enables the TurboQuant KV cache for lower memory while keeping 256K context alive. You can run it locally from `src/mlx-openai-optiq-server` or via `docker-compose.yml`:
+# Test endpoint
+curl -s http://localhost:8000/v1/models
+```
+
+**Stop server:**
 ```bash
-# Local python run
-python src/mlx-openai-optiq-server/mlx-openai-optiq-server.py
+# Find process ID
+ps aux | grep mlx-openai-server | grep -v grep
 
-# Or build the Docker service (exposes port 8080)
-docker compose up -d --build
+# Stop gracefully
+pkill -f mlx-openai-server
+
+# Or force stop (if needed)
+pkill -9 -f mlx-openai-server
 ```
-The service exposes the same `/v1/chat/completions` API plus `/v1/models`. The `docker-compose` definition already wires `HUGGINGFACE_MODEL`, `CONTEXT_LENGTH`, and the shared HuggingFace cache volume.
 
-## Monitoring & maintenance
+**Restart server:**
+```bash
+# Stop
+pkill -f mlx-openai-server
 
-- Tail the logs or the background log file:
-  ```bash
-  tail -f /tmp/mlx-server.log
-  docker logs -f mlx-optiq-server
-  ```
-- Monitor memory `ps aux | grep mlx-openai-server` or `pmap` for the Optiq service. 4-bit quantized models still eat ~20–25 GB with 256K context.
-- Adjust `MAX_TOKENS`, `TEMPERATURE`, etc., via the `mlx-openai-server launch` flags or by crafting OpenAI-compatible requests.
+# Wait a moment
+sleep 2
+
+# Start again with 256k context
+cd ~/code/Agents/LocalFirst
+source .venv/bin/activate
+nohup mlx-openai-server launch \
+  --model-path mlx-community/Qwen3.5-9B-OptiQ-4bit \
+  --model-type lm \
+  --port 8000 \
+  --host 0.0.0.0 \
+  --context-length 262144 \
+  > /tmp/mlx-server.log 2>&1 &
+```
+
+**Check resource usage:**
+```bash
+# Memory usage (~20-25GB expected for 27B model)
+ps aux | grep mlx-openai-server | grep -v grep | awk '{print $6/1024/1024 " GB"}'
+
+# View server logs
+tail -f /tmp/mlx-server.log
+```
+
+### Test Endpoints
+```bash
+# List available models
+curl http://localhost:8000/v1/models
+
+# Chat completions
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "mlx-community/Qwen3.5-9B-OptiQ-4bit",
+    "messages": [
+      {"role": "user", "content": "Explain async/await in JavaScript"}
+    ],
+    "max_tokens": 200
+  }'
+```
+
+## OpenCode Integration
+
+### Configuration
+Add to `.config/opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "mlx-local": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "MLX Local (Qwen3.5-27B)",
+      "options": {
+        "baseURL": "http://localhost:8000/v1"
+      },
+      "models": {
+        "mlx-community/Qwen3.5-9B-OptiQ-4bit": {
+          "name": "Qwen3.5-9B-OptiQ-4bit"
+        }
+      }
+    }
+  }
+}
+```
+
+### Usage
+1. Start the MLX server (see [OpenAI-Compatible Server](#openai-compatible-server))
+2. Restart OpenCode
+3. Select "MLX Local (Qwen3.5-27B)" from the model dropdown
+4. Start coding with local AI assistance
+
+### Tips for OpenCode
+- Use at least 16K context for agentic workflows
+- Qwen3-Coder models work best for code generation
+- Set temperature to 0.2-0.7 for balanced creativity/accuracy
 
 ## Troubleshooting
 
-- **Command not found:** Activate `.venv` or call `./.venv/bin/mlx-openai-server` directly.
-- **Port busy:** Use `lsof -i :8000`/`:8080` and free the port or pass `--port`/`PORT` overrides.
-- **Slow downloads:** Ensure `HF_TOKEN` is set for authenticated HuggingFace access.
-- **Cache issues:** Remove `~/.cache/huggingface/hub/models--mlx-community--Qwen3.5-9B-OptiQ-4bit` and restart if the download is corrupted.
-- **OpenCode connection failures:** Match the server port and host inside `docs/IDEs/OpenCode.md` and restart OpenCode after any change.
+### Path Validation Errors
+**Error:** `Repo id must use alphanumeric chars...`
 
-## Resources
+**Solution:** Use HuggingFace repo ID directly, not local paths:
+```bash
+# ✗ Wrong
+--model ./qwen35-27b-mlx
 
-- `docs/Qwen.md` – Qwen model lineup, TurboQuant KV strategy, and inference presets.
-- `docs/IDEs/QwenCode.md` / `OpenCode.md` / `CCR.md` – Hook your IDEs to the MLX endpoints.
-- `docs/benchmark.md` – Throughput and memory comparisons for validation.
+# ✓ Correct
+--model mlx-community/Qwen3.5-9B-OptiQ-4bit
+```
+
+### Slow Downloads
+**Solution:** Set HF_TOKEN for authenticated access with higher rate limits (see [Quick Start](#quick-start)).
+
+### Download Not Resuming
+Downloads automatically resume from `.incomplete` files. If stuck:
+1. Check cache: `du -sh ~/.cache/huggingface/hub/models--*`
+2. Verify incomplete files exist
+3. Restart command - it will resume automatically
+4. Files grow even if progress bar shows rounded values (e.g., 2.0G → 2.4G)
+
+### Server Not Starting
+**Error:** Port already in use
+
+**Solution:**
+1. Check what's using the port: `lsof -i :8000`
+2. Use a different port (avoid 8080 - used by OrbStack)
+3. Kill conflicting process if needed
+
+### curl Returns Nothing
+**Common Issues:**
+1. Wrong endpoint - use `/v1/chat/completions` not `/v1/completions`
+2. Server not started - check with `ps aux | grep mlx-openai-server`
+3. Wrong port - verify server is on expected port
+4. Wrong syntax - use `mlx-openai-server launch` not `mlx-openai-server --model`
+
+### Command Not Found: mlx-openai-server
+**Error:** `zsh: command not found: mlx-openai-server`
+
+**Cause:** The venv is not activated in your current shell session.
+
+**Solution:**
+```bash
+# Option 1: Activate the venv
+cd ~/code/Agents/LocalFirst
+source .venv/bin/activate
+mlx-openai-server launch ...
+
+# Option 2: Use full path (any directory)
+~/code/Agents/LocalFirst/.venv/bin/mlx-openai-server launch ...
+
+# Option 3: Check if server is already running
+ps aux | grep mlx-openai-server | grep -v grep
+curl -s http://localhost:8000/v1/models
+```
+
+### OpenCode Can't Connect
+1. Ensure server is running: `curl http://localhost:8000/v1/models`
+2. Check baseURL in opencode.json matches server port
+3. Restart OpenCode after config changes
+4. Check server logs: `tail -f logs/app.log`
+
+## Additional Resources
+
+- [mlx-openai-server GitHub](https://github.com/cubist38/mlx-openai-server) - OpenAI-compatible API server for MLX
+- [OpenCode Providers](https://opencode.ai/docs/providers/) - OpenCode provider configuration
+- [OpenCode Models](https://opencode.ai/docs/models/) - OpenCode model setup
+- [MLX Examples](https://github.com/ml-explore/mlx-examples) - Official MLX examples
+
+**Sources:**
+- [mlx-openai-server · PyPI](https://pypi.org/project/mlx-openai-server/)
+- [GitHub - cubist38/mlx-openai-server](https://github.com/cubist38/mlx-openai-server)
+- [Providers | OpenCode](https://opencode.ai/docs/providers/)
+- [Local LLM with OpenCode](https://tobrun.github.io/blog/add-openai-compatible-endpoint-to-opencode/)
+- [Setting Up OpenCode with Local Models](https://theaiops.substack.com/p/setting-up-opencode-with-local-models)
