@@ -22,24 +22,11 @@ from mlx_server_shared import (  # noqa: E402
 def build_app(model_id: str) -> FastAPI:
     from mlx_lm import load, stream_generate
     from mlx_lm.sample_utils import make_sampler
-    from optiq.core.turbo_kv_cache import TurboQuantKVCache, patch_attention
 
     model, tokenizer = load(model_id)
-    patch_attention()
-
-    def make_turbo_cache(seed_base: int = 42, bits: int = 4):
-        cache = model.make_cache()
-        for i, layer in enumerate(model.layers):
-            if hasattr(layer, "self_attn"):
-                cache[i] = TurboQuantKVCache(
-                    head_dim=layer.self_attn.head_dim,
-                    bits=bits,
-                    seed=seed_base + i,
-                )
-        return cache
 
     app = FastAPI()
-    install_shutdown_endpoint(app, "mlx-openai-optiq-server")
+    install_shutdown_endpoint(app, "mlx-openai-server")
 
     class Message(BaseModel):
         role: str
@@ -71,7 +58,6 @@ def build_app(model_id: str) -> FastAPI:
             tokenize=False,
         )
 
-        cache = make_turbo_cache(bits=4)
         sampler = make_sampler(temp=req.temperature or 0.0)
 
         text = ""
@@ -81,7 +67,6 @@ def build_app(model_id: str) -> FastAPI:
             prompt=prompt,
             max_tokens=req.max_tokens,
             sampler=sampler,
-            prompt_cache=cache,
         ):
             if hasattr(chunk, "text"):
                 text += chunk.text
@@ -109,13 +94,13 @@ def build_app(model_id: str) -> FastAPI:
 
 
 def main() -> int:
-    model_id, host, port = resolve_runtime(default_port=8080, port_env_name="OPTIQ_PORT")
+    model_id, host, port = resolve_runtime(default_port=8000, port_env_name="MLX_PORT")
 
     control = ServerControl(
-        server_name="mlx-openai-optiq-server",
+        server_name="mlx-openai-server",
         script_path=Path(__file__).resolve(),
-        pid_file=Path("logs/mlx-optiq-server.pid"),
-        log_file=Path("logs/mlx-optiq-server.log"),
+        pid_file=Path("logs/mlx-server.pid"),
+        log_file=Path("logs/mlx-server.log"),
         host=host,
         port=port,
     )
