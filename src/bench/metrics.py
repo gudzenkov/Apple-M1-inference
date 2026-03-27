@@ -107,7 +107,7 @@ def benchmark_model(
     runtime: str,
     memory_pid: Optional[int] = None,
     memory_pattern: Optional[str] = None,
-    request_timeout_sec: int = 600,
+    request_timeout_sec: int = 2000,
     artifact_dir: Optional[Path] = None,
     extra_payload: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
@@ -280,7 +280,7 @@ def prefill_prompt_cache(
     prefill_url: str,
     cache_id: str,
     prompt_prefix: str,
-    request_timeout_sec: int = 600,
+    request_timeout_sec: int = 2000,
 ) -> Dict[str, Any]:
     payload = {
         "cache_id": cache_id,

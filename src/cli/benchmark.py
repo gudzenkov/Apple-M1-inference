@@ -65,8 +65,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--request-timeout",
         type=int,
-        default=600,
-        help="Per-request timeout in seconds (default: 600)",
+        default=2000,
+        help="Per-request timeout in seconds (default: 2000)",
     )
     parser.add_argument(
         "--output",
