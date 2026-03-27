@@ -218,10 +218,13 @@ def build_long_cases(
             sample_index = idx + 1
             needle = _needle_fields(mode="long", context_k=context_k, sample_index=sample_index)
             needle_text = _render_needle(prompts, needle["needle_key"], needle["needle_value"])
+            # Spread needles across the payload to avoid end-clamp collisions at small contexts.
+            max_pos = max(0, len(shared_payload_words) - len(needle_text.split()))
+            target_position = int((sample_index * max_pos) / (samples + 1)) if samples > 0 else 0
             shared_payload_words, needle_position = _embed_needle(
                 payload_words=shared_payload_words,
                 needle_text=needle_text,
-                position=(context_k * 173) + (idx * 331),
+                position=target_position,
             )
             context_needles.append(
                 {
