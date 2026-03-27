@@ -53,7 +53,7 @@ def _experiment_group(args: Any) -> str:
     elif str(args.dataset) in {"long", "all"}:
         dataset_part = _dataset_name_from_file(str(args.dataset_file))
     else:
-        dataset_part = "quick"
+        dataset_part = "short"
     return _slug(f"{runtime_part}-{dataset_part}-s{args.samples}-mt{args.max_tokens}")
 
 
@@ -103,6 +103,50 @@ def _avg(values: List[float]) -> float:
     return sum(values) / len(values)
 
 
+def _normalize_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip())
+
+
+def _extract_retrieval_answer(raw_text: str) -> str:
+    for line in raw_text.splitlines():
+        candidate = line.strip()
+        if not candidate:
+            continue
+        if candidate.lower().startswith("answer:"):
+            candidate = candidate.split(":", 1)[1].strip()
+        return _normalize_text(candidate)
+    return _normalize_text(raw_text)
+
+
+def _levenshtein_distance(a: str, b: str) -> int:
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    if len(a) < len(b):
+        a, b = b, a
+    prev = list(range(len(b) + 1))
+    for i, char_a in enumerate(a, start=1):
+        curr = [i]
+        for j, char_b in enumerate(b, start=1):
+            cost = 0 if char_a == char_b else 1
+            curr.append(min(
+                prev[j] + 1,
+                curr[j - 1] + 1,
+                prev[j - 1] + cost,
+            ))
+        prev = curr
+    return prev[-1]
+
+
+def _retrieval_score(predicted: str, expected: str) -> float:
+    max_len = max(len(predicted), len(expected), 1)
+    dist = _levenshtein_distance(predicted, expected)
+    return max(0.0, 1.0 - (float(dist) / float(max_len)))
+
+
 def _runtime_summary_rows(results: List[Dict[str, Any]], runtimes: List[str]) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     successful = [r for r in results if r.get("success")]
@@ -119,9 +163,16 @@ def _runtime_summary_rows(results: List[Dict[str, Any]], runtimes: List[str]) ->
                     "avg_generation_tps": 0.0,
                     "avg_ttft_sec": 0.0,
                     "avg_memory_gb": 0.0,
+                    "avg_retrieval_score_float": 0.0,
+                    "retrieval_exact_rate": 0.0,
                 }
             )
             continue
+        retrieval_rows = [r for r in runtime_results if isinstance(r.get("retrieval_score_float"), (float, int))]
+        retrieval_scores = [float(r.get("retrieval_score_float", 0.0) or 0.0) for r in retrieval_rows]
+        retrieval_exact_rate = _avg(
+            [1.0 if bool(r.get("retrieval_exact", False)) else 0.0 for r in retrieval_rows]
+        )
         rows.append(
             {
                 "runtime": runtime,
@@ -136,8 +187,53 @@ def _runtime_summary_rows(results: List[Dict[str, Any]], runtimes: List[str]) ->
                 ),
                 "avg_ttft_sec": round(_avg([float(r.get("ttft_sec", 0.0) or 0.0) for r in runtime_results]), 3),
                 "avg_memory_gb": round(_avg([float(r.get("memory_gb", 0.0) or 0.0) for r in runtime_results]), 3),
+                "avg_retrieval_score_float": round(_avg(retrieval_scores), 3),
+                "retrieval_exact_rate": round(retrieval_exact_rate, 3),
             }
         )
+    return rows
+
+
+def _runtime_context_summary_rows(results: List[Dict[str, Any]], runtimes: List[str]) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    successful = [r for r in results if r.get("success")]
+    for runtime in runtimes:
+        runtime_results = [r for r in successful if r.get("runtime") == runtime]
+        context_groups: Dict[str, List[Dict[str, Any]]] = {}
+        for row in runtime_results:
+            context_tokens = row.get("context_tokens_target")
+            default_context_k = _default_context_k_for_runtime(runtime)
+            label = (
+                f"{int(context_tokens / 1000)}k"
+                if isinstance(context_tokens, int)
+                else f"{default_context_k}k"
+            )
+            context_groups.setdefault(label, []).append(row)
+        for context_label, group in sorted(context_groups.items(), key=lambda item: item[0]):
+            retrieval_rows = [r for r in group if isinstance(r.get("retrieval_score_float"), (float, int))]
+            retrieval_scores = [float(r.get("retrieval_score_float", 0.0) or 0.0) for r in retrieval_rows]
+            retrieval_exact_rate = _avg(
+                [1.0 if bool(r.get("retrieval_exact", False)) else 0.0 for r in retrieval_rows]
+            )
+            rows.append(
+                {
+                    "runtime": runtime,
+                    "context": context_label,
+                    "count": len(group),
+                    "avg_total_time": round(_avg([float(r.get("total_time", 0.0) or 0.0) for r in group]), 3),
+                    "avg_tokens_per_second": round(
+                        _avg([float(r.get("tokens_per_second", 0.0) or 0.0) for r in group]), 3
+                    ),
+                    "avg_prompt_tps": round(_avg([float(r.get("prompt_tps", 0.0) or 0.0) for r in group]), 3),
+                    "avg_generation_tps": round(
+                        _avg([float(r.get("generation_tps", 0.0) or 0.0) for r in group]), 3
+                    ),
+                    "avg_ttft_sec": round(_avg([float(r.get("ttft_sec", 0.0) or 0.0) for r in group]), 3),
+                    "avg_memory_gb": round(_avg([float(r.get("memory_gb", 0.0) or 0.0) for r in group]), 3),
+                    "avg_retrieval_score_float": round(_avg(retrieval_scores), 3),
+                    "retrieval_exact_rate": round(retrieval_exact_rate, 3),
+                }
+            )
     return rows
 
 
@@ -150,6 +246,7 @@ def _write_summary_reports(
 ) -> tuple[Path, Path]:
     generated_at = datetime.now(timezone.utc).isoformat()
     runtime_rows = _runtime_summary_rows(results, runtimes)
+    runtime_context_rows = _runtime_context_summary_rows(results, runtimes)
     success_count = sum(1 for r in results if r.get("success"))
     failure_count = len(results) - success_count
     contexts_k_raw = getattr(args, "contexts_k", None)
@@ -197,6 +294,7 @@ def _write_summary_reports(
             "failure": failure_count,
         },
         "runtime_summary": runtime_rows,
+        "runtime_context_summary": runtime_context_rows,
         "results": results,
     }
 
@@ -252,23 +350,39 @@ def _write_summary_reports(
     lines.append("## Runtime Summary")
     lines.append("")
     lines.append(
-        "| Runtime | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg TTFT (s) | Avg Peak RAM (GB) |"
+        "| Runtime | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate |"
     )
-    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in runtime_rows:
         lines.append(
             f"| {row['runtime']} | {row['count']} | {row['avg_total_time']:.3f} | "
             f"{row['avg_tokens_per_second']:.3f} | {row['avg_prompt_tps']:.3f} | "
             f"{row['avg_generation_tps']:.3f} | {row['avg_ttft_sec']:.3f} | "
-            f"{row['avg_memory_gb']:.3f} |"
+            f"{row['avg_memory_gb']:.3f} | {row['avg_retrieval_score_float']:.3f} | "
+            f"{row['retrieval_exact_rate']:.3f} |"
+        )
+    lines.append("")
+    lines.append("## Runtime + Context Summary")
+    lines.append("")
+    lines.append(
+        "| Runtime | Context | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for row in runtime_context_rows:
+        lines.append(
+            f"| {row['runtime']} | {row['context']} | {row['count']} | {row['avg_total_time']:.3f} | "
+            f"{row['avg_tokens_per_second']:.3f} | {row['avg_prompt_tps']:.3f} | "
+            f"{row['avg_generation_tps']:.3f} | {row['avg_ttft_sec']:.3f} | "
+            f"{row['avg_memory_gb']:.3f} | {row['avg_retrieval_score_float']:.3f} | "
+            f"{row['retrieval_exact_rate']:.3f} |"
         )
     lines.append("")
     lines.append("## Run Results")
     lines.append("")
     lines.append(
-        "| Runtime | Model | Case | Context | Time (s) | Tok/s | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) | Status |"
+        "| Runtime | Model | Case | Context | Time (s) | Tok/s | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) | Retrieval score | Retrieval exact | Status |"
     )
-    lines.append("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|")
+    lines.append("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|")
     for row in results_sorted:
         context_tokens = row.get("context_tokens_target")
         default_context_k = _default_context_k_for_runtime(str(row.get("runtime", "")))
@@ -285,7 +399,9 @@ def _write_summary_reports(
             f"{float(row.get('prompt_tps', 0.0) or 0.0):.2f} | "
             f"{float(row.get('generation_tps', 0.0) or 0.0):.2f} | "
             f"{float(row.get('ttft_sec', 0.0) or 0.0):.2f} | "
-            f"{float(row.get('memory_gb', 0.0) or 0.0):.2f} | {status} |"
+            f"{float(row.get('memory_gb', 0.0) or 0.0):.2f} | "
+            f"{float(row.get('retrieval_score_float', 0.0) or 0.0):.3f} | "
+            f"{bool(row.get('retrieval_exact', False))} | {status} |"
         )
 
     summary_md_path = experiment_dir / "summary.md"
@@ -366,11 +482,32 @@ def run_benchmark(args: Any) -> int:
                         "dataset": case.get("dataset"),
                         "case_name": case.get("case_name"),
                     }
-                    for key in ("context_tokens_target", "payload_source"):
+                    for key in (
+                        "context_tokens_target",
+                        "payload_source",
+                        "needle_key",
+                        "needle_value",
+                        "needle_position",
+                    ):
                         value = case.get(key)
                         if value is not None:
                             case_meta[key] = value
+                    expected_needle = case_meta.get("needle_value")
+                    if isinstance(expected_needle, str) and expected_needle:
+                        predicted_raw = str(result.get("response_text", "") or "")
+                        predicted_answer = _extract_retrieval_answer(predicted_raw)
+                        expected_answer = _normalize_text(expected_needle)
+                        retrieval_score = _retrieval_score(predicted_answer, expected_answer)
+                        case_meta.update(
+                            {
+                                "retrieval_expected": expected_answer,
+                                "retrieval_predicted": predicted_answer,
+                                "retrieval_score_float": round(retrieval_score, 6),
+                                "retrieval_exact": predicted_answer == expected_answer,
+                            }
+                        )
                     result.update(case_meta)
+                    result.pop("response_text", None)
                     results.append(result)
 
                     if result.get("success"):
@@ -424,6 +561,13 @@ def run_benchmark(args: Any) -> int:
                 continue
             avg_speed = sum(r["tokens_per_second"] for r in runtime_results) / len(runtime_results)
             avg_time = sum(r["total_time"] for r in runtime_results) / len(runtime_results)
-            print(f"  {runtime}: avg {avg_speed:.2f} tok/s, avg {avg_time:.2f}s", file=sys.stderr)
+            retrieval_rows = [r for r in runtime_results if isinstance(r.get("retrieval_score_float"), (float, int))]
+            avg_retrieval = _avg([float(r.get("retrieval_score_float", 0.0) or 0.0) for r in retrieval_rows])
+            exact_rate = _avg([1.0 if bool(r.get("retrieval_exact", False)) else 0.0 for r in retrieval_rows])
+            print(
+                f"  {runtime}: avg {avg_speed:.2f} tok/s, avg {avg_time:.2f}s, "
+                f"retrieval {avg_retrieval:.3f}, exact {exact_rate:.3f}",
+                file=sys.stderr,
+            )
 
     return 0

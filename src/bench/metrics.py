@@ -267,6 +267,7 @@ def benchmark_model(
         "ttft_sec": round(ttft_sec, 3),
         "server_total_time_sec": round(server_total_time_sec, 3),
         "memory_gb": reported_memory_gb,
+        "response_text": response_text,
         "payload_path": _display_path(payload_path),
         "response_path": _display_path(response_path),
     }

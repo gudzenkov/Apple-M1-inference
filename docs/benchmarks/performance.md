@@ -5,6 +5,9 @@ Benchmark workflow for comparing the two local MLX inference servers:
 - `mlx-openai-optiq-server` (TurboQuant, port `8080`)
 
 The benchmark runner manages server lifecycle to avoid OOM from running both MLX servers at once.
+It now uses 2 dataset modes:
+- `short` (fixed `8k`, needle-in-haystack retrieval)
+- `long` (variable context via `--context`, default `256k`, needle-in-haystack retrieval)
 
 ## Measurements
 
@@ -32,8 +35,8 @@ cd "$(git rev-parse --show-toplevel)"
 source .venv/bin/activate
 
 # Default benchmark run from Justfile:
-# - quick: 8k context, 5 fast samples
-# - long-context: 256k context, 5 large-payload samples (TurboQuant paper content)
+# - short: 8k context, retrieval-style samples
+# - long: 256k context (or --context override), retrieval-style samples
 just bench
 
 # Equivalent direct command
@@ -61,18 +64,19 @@ Setup:
 - Runtime: `both` (sequential: `mlx` then `mlx-optiq`)
 - Model: alias `optiq` (`mlx-community/Qwen3.5-9B-OptiQ-4bit`)
 - Dataset source: `dataset/turboquant_2504_19874v1.md`
-- Prompt payload: abstract-focused text extracted from dataset file
+- Prompt payload: needle-in-haystack retrieval prompt
 - Contexts: `8k,16k,32k,64k`
-- Samples: `1` per context
-- Output tokens: `64` per request (dataset context mode)
+- Samples: `3` per context (minimum supported)
+- Output tokens: `64` per request (long mode with context override)
 
 Command:
 ```bash
 uv run benchmark \
   --runtime both \
   --model optiq \
+  --dataset long \
   --context 8,16,32,64 \
-  --samples 1 \
+  --samples 3 \
   --output benchmark_context_8_16_32_64_both.jsonl
 ```
 
@@ -105,14 +109,17 @@ uv run benchmark --runtime mlx-optiq --model mlx-community/Qwen3.5-9B-OptiQ-4bit
 # Compare both servers on all configured prompts
 uv run benchmark --runtime both --model mlx-community/Qwen3.5-9B-OptiQ-4bit
 
-# Run quick dataset only
-uv run benchmark --dataset quick --runtime both
+# Run short dataset only (8k)
+uv run benchmark --dataset short --runtime both --samples 3
 
-# Run long-context dataset only
-uv run benchmark --dataset long --runtime both
+# Run long dataset only (default 256k)
+uv run benchmark --dataset long --runtime both --samples 3
 
-# Run all datasets (quick + long-context) in one execution
-uv run benchmark --dataset all --runtime both
+# Run long dataset context sweep
+uv run benchmark --dataset long --context 8,64 --runtime both --samples 3
+
+# Run all datasets (short + long)
+uv run benchmark --dataset all --runtime both --samples 3
 
 # Custom prompt and output file (stored under results/)
 uv run benchmark \
@@ -135,6 +142,10 @@ Each JSONL line includes:
 - `ttft_sec`
 - `server_total_time_sec`
 - `memory_gb`
+- `retrieval_expected`
+- `retrieval_predicted`
+- `retrieval_score_float`
+- `retrieval_exact`
 - `payload_path`
 - `response_path`
 
@@ -164,8 +175,12 @@ Artifact layout:
   "ttft_sec": 7.9,
   "server_total_time_sec": 8.4,
   "memory_gb": 10.7,
-  "payload_path": "data/benchmark_context-8k-16k-32k-64k_both_optiq_s1_mt100_20260327T161403Z/mlx-optiq__mlx-community-Qwen3.5-9B-OptiQ-4bit__context-8k-1/payload.json",
-  "response_path": "data/benchmark_context-8k-16k-32k-64k_both_optiq_s1_mt100_20260327T161403Z/mlx-optiq__mlx-community-Qwen3.5-9B-OptiQ-4bit__context-8k-1/response.json"
+  "retrieval_expected": "NIAH-LONG-64K-S01-001234",
+  "retrieval_predicted": "NIAH-LONG-64K-S01-001234",
+  "retrieval_score_float": 1.0,
+  "retrieval_exact": true,
+  "payload_path": "data/benchmark/mlx-paper-s3-mt100/20260327T161403Z/mlx-optiq-qwen3.5-9b-optiq-q4-64k-s1/payload.json",
+  "response_path": "data/benchmark/mlx-paper-s3-mt100/20260327T161403Z/mlx-optiq-qwen3.5-9b-optiq-q4-64k-s1/response.json"
 }
 ```
 

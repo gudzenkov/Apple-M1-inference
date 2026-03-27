@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from src.bench.dataset_tools import DEFAULT_DATASET_MD
-from src.bench.datasets import parse_context_list
+from src.bench.datasets import normalize_dataset_mode, parse_context_list
 from src.bench.runner import run_benchmark
 
 
@@ -11,9 +12,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="benchmark", description="Benchmark local LLM performance")
     parser.add_argument(
         "--dataset",
-        choices=["quick", "long", "all"],
+        choices=["short", "long", "all", "quick", "context"],
         default="all",
-        help="Dataset profile: quick (8k), long-context (256k), or all",
+        help=(
+            "Dataset profile: short (8k), long (variable context via --context, default 256k), or all. "
+            "Legacy aliases: quick->short, context->long"
+        ),
     )
     parser.add_argument(
         "--context",
@@ -89,8 +93,17 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.samples <= 0:
-        raise SystemExit("--samples must be > 0")
+    if args.samples < 3:
+        raise SystemExit("--samples must be >= 3")
+
+    raw_dataset = str(args.dataset)
+    args.dataset = normalize_dataset_mode(raw_dataset)
+    if raw_dataset != args.dataset:
+        print(
+            f"Warning: --dataset {raw_dataset!r} is deprecated; using {args.dataset!r}",
+            file=sys.stderr,
+        )
+
     if args.context:
         try:
             args.contexts_k = parse_context_list(args.context)
