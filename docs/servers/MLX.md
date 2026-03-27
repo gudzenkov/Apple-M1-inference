@@ -7,6 +7,7 @@ Docker is not supported for MLX inference in this repo because Linux VM containe
 - [Quick Start](#quick-start)
 - [Basic Usage](#basic-usage)
 - [OpenAI-Compatible Servers](#openai-compatible-servers)
+- [Context Settings](#context-settings)
 - [Troubleshooting](#troubleshooting)
 - [Resources](#resources)
 
@@ -148,6 +149,24 @@ curl http://localhost:8080/v1/chat/completions \
     "max_tokens": 200
   }'
 ```
+
+## Context Settings
+
+### 1) Model-side
+- Effective max context is bounded by the model config (for Qwen-family, `max_position_embeddings` in `config.json` / `text_config`).
+- Context window cannot exceed model `max_position_embeddings`.
+- For the default `mlx-community/Qwen3.5-9B-OptiQ-4bit`, `text_config.max_position_embeddings` is `262144` (256k).
+- WARN: editing `max_position_embeddings` manually is model-specific and can break RoPE/scaling assumptions.
+
+### 2) Server-side
+- Request output length is controlled by `max_tokens` in `/v1/chat/completions`.
+- The underlying `mlx_lm` generation API supports `max_kv_size`, but this repo's `mlx-openai-server` and `mlx-openai-optiq-server` do not expose dynamic `max_kv_size` configuration right now.
+- Result: there is no server-side runtime flag/env in this repo today that changes KV cache max context window dynamically.
+
+### 3) Client-side
+- Client controls prompt/input length sent to server.
+- Client controls requested output length via `max_tokens`.
+- Benchmark `--context` controls generated benchmark payload size/profiles for experiments; it does not override model-side max context.
 
 ## Troubleshooting
 
