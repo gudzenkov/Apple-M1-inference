@@ -23,6 +23,7 @@ from src.bench.process import (
     stop_mlx_servers,
     warmup_model,
 )
+from src.bench.utils import default_output_filename, default_summary_stem, resolve_experiment_paths
 from src.shared.models import get_model_key
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -267,7 +268,9 @@ def _write_summary_reports(
     results: List[Dict[str, Any]],
     runtimes: List[str],
     output_path: Path,
-    experiment_dir: Path,
+    artifact_dir: Path,
+    summary_dir: Optional[Path] = None,
+    summary_stem: str = "summary",
 ) -> tuple[Path, Path]:
     generated_at = datetime.now(timezone.utc).isoformat()
     runtime_rows = _runtime_summary_rows(results, runtimes)
@@ -312,7 +315,7 @@ def _write_summary_reports(
         "params": params,
         "files": {
             "results_jsonl": _display_path(output_path),
-            "artifacts_dir": _display_path(experiment_dir),
+            "artifacts_dir": _display_path(artifact_dir),
         },
         "counts": {
             "total": len(results),
@@ -324,7 +327,9 @@ def _write_summary_reports(
         "results": results,
     }
 
-    summary_json_path = experiment_dir / "summary.json"
+    target_dir = summary_dir or artifact_dir
+    target_dir.mkdir(parents=True, exist_ok=True)
+    summary_json_path = target_dir / f"{summary_stem}.json"
     with open(summary_json_path, "w", encoding="utf-8") as f:
         json.dump(summary_json, f, ensure_ascii=False, indent=2)
 
@@ -365,7 +370,7 @@ def _write_summary_reports(
     lines.append("## Files")
     lines.append("")
     lines.append(f"- `results_jsonl`: `{_display_path(output_path)}`")
-    lines.append(f"- `artifacts_dir`: `{_display_path(experiment_dir)}`")
+    lines.append(f"- `artifacts_dir`: `{_display_path(artifact_dir)}`")
     lines.append(f"- `summary_json`: `{_display_path(summary_json_path)}`")
     lines.append("")
     lines.append("## Counts")
@@ -432,7 +437,7 @@ def _write_summary_reports(
             f"{bool(row.get('used_prompt_cache', False))} | {status} |"
         )
 
-    summary_md_path = experiment_dir / "summary.md"
+    summary_md_path = target_dir / f"{summary_stem}.md"
     summary_md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return summary_json_path, summary_md_path
 
@@ -449,12 +454,20 @@ def run_benchmark(args: Any) -> int:
     )
 
     results: List[Dict[str, Any]] = []
-    experiment_dir = ROOT_DIR / "data" / "benchmark" / _experiment_group(args) / _timestamp_slug()
+    experiment_group = _experiment_group(args)
+    experiment_stamp = _timestamp_slug()
+    experiment_dir, results_dir = resolve_experiment_paths(
+        root_dir=ROOT_DIR,
+        experiment_group=experiment_group,
+        experiment_stamp=experiment_stamp,
+    )
     experiment_dir.mkdir(parents=True, exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
     use_prompt_cache = bool(getattr(args, "use_prompt_cache", False))
 
     print("Managed mode: MLX servers run sequentially (never together) to avoid OOM.", file=sys.stderr)
     print(f"Artifacts directory: {experiment_dir}", file=sys.stderr)
+    print(f"Results directory: {results_dir}", file=sys.stderr)
 
     for runtime in runtimes:
         config = CONFIGS[runtime]
@@ -616,11 +629,8 @@ def run_benchmark(args: Any) -> int:
 
     if args.output:
         output_name = args.output
-    elif getattr(args, "contexts_k", None):
-        context_slug = "-".join(f"{c}k" for c in args.contexts_k)
-        output_name = f"results/benchmark_context_{context_slug}.jsonl"
     else:
-        output_name = f"results/benchmark_{args.dataset}.jsonl"
+        output_name = str(results_dir / default_output_filename(args, runtimes, results))
     output_arg = Path(output_name)
     if not output_arg.is_absolute() and output_arg.parent == Path("."):
         output_arg = Path("results") / output_arg
@@ -633,15 +643,30 @@ def run_benchmark(args: Any) -> int:
             file.write(json.dumps(result) + "\n")
 
     print(f"\n✅ Results written to {output_path}", file=sys.stderr)
+    summary_stem = default_summary_stem(args, runtimes, results)
     summary_json_path, summary_md_path = _write_summary_reports(
         args=args,
         results=results,
         runtimes=runtimes,
         output_path=output_path,
-        experiment_dir=experiment_dir,
+        artifact_dir=experiment_dir,
+        summary_dir=experiment_dir,
+        summary_stem=summary_stem,
     )
     print(f"✅ Summary JSON: {_display_path(summary_json_path)}", file=sys.stderr)
     print(f"✅ Summary MD: {_display_path(summary_md_path)}", file=sys.stderr)
+
+    results_summary_json_path, results_summary_md_path = _write_summary_reports(
+        args=args,
+        results=results,
+        runtimes=runtimes,
+        output_path=output_path,
+        artifact_dir=experiment_dir,
+        summary_dir=results_dir,
+        summary_stem=summary_stem,
+    )
+    print(f"✅ Results Summary JSON: {_display_path(results_summary_json_path)}", file=sys.stderr)
+    print(f"✅ Results Summary MD: {_display_path(results_summary_md_path)}", file=sys.stderr)
 
     successful = [r for r in results if r.get("success")]
     if successful:

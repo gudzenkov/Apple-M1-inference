@@ -71,7 +71,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         default=None,
-        help="Output JSONL file (default: results/benchmark_<dataset>.jsonl)",
+        help=(
+            "Output JSONL file. Default is auto-generated under "
+            "results/<experiment-group>/<utc-timestamp>/benchmark_<model>_<context>_s<samples>.jsonl"
+        ),
     )
     parser.add_argument(
         "--all-models",
