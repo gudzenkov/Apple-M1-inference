@@ -1,4 +1,4 @@
-# LocalFirst LLM Setup
+# Apple M1 LLM inference Setup
 
 Local-first guides for running large language models on Apple Silicon, with separate provider runbooks for MLX and Ollama plus model/client references.
 
