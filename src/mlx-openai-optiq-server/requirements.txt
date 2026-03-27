@@ -1,5 +1,0 @@
-mlx-lm>=0.30.7
-mlx-optiq
-fastapi
-uvicorn
-pydantic

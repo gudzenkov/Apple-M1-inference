@@ -1,0 +1,15 @@
+[project]
+name = "localfirst-mlx"
+version = "0.1.0"
+description = "Local MLX inference servers for standard and Optiq runtimes"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "huggingface-hub",
+  "mlx>=0.31.1",
+  "mlx-lm>=0.30.7",
+  "mlx-optiq",
+  "pydantic",
+  "requests",
+  "uvicorn",
+]
