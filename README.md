@@ -1,6 +1,6 @@
 # LocalFirst LLM Setup
 
-Local-first guides for running large language models on Apple Silicon, with separate provider runbooks for MLX and Ollama plus model/IDE references.
+Local-first guides for running large language models on Apple Silicon, with separate provider runbooks for MLX and Ollama plus model/client references.
 
 ## Engines at a Glance
 
@@ -11,26 +11,29 @@ Local-first guides for running large language models on Apple Silicon, with sepa
 
 ## Documentation
 
-### Provider Guides
-- 📘 [`docs/MLX.md`](docs/MLX.md) – MLX setup, server workflows, and troubleshooting.
-- 📗 [`docs/ollama.md`](docs/ollama.md) – Ollama installation, model management, and API notes.
+### Inference Server Guides
+- 📘 [`docs/servers/MLX.md`](docs/servers/MLX.md) – MLX setup, server workflows, and troubleshooting.
+- 📗 [`docs/servers/ollama.md`](docs/servers/ollama.md) – Ollama installation, model management, and API notes.
 
 ### Usage Guides
-- 🔧 [`docs/Qwen.md`](docs/Qwen.md) – Qwen model lineup, TurboQuant cache, and inference presets.
-- 🔧 [`docs/IDEs/QwenCode.md`](docs/IDEs/QwenCode.md) – Point QwenCode at the Optiq/MLX endpoints.
-- 🔧 [`docs/IDEs/OpenCode.md`](docs/IDEs/OpenCode.md) – Configure OpenCode providers for the local runtimes.
-- 🔧 [`docs/IDEs/CCR.md`](docs/IDEs/CCR.md) – Claude Code Router routing notes for the local endpoints.
+- 🔧 [`docs/models/Qwen.md`](docs/models/Qwen.md) – Qwen model lineup, TurboQuant cache, and inference presets.
+- 🔧 [`docs/clients/QwenCode.md`](docs/clients/QwenCode.md) – Point QwenCode at the Optiq/MLX endpoints.
+- 🔧 [`docs/clients/OpenCode.md`](docs/clients/OpenCode.md) – Configure OpenCode providers for the local runtimes.
+- 🔧 [`docs/clients/CCR.md`](docs/clients/CCR.md) – Claude Code Router routing notes for the local endpoints.
 
 ### Performance
-- 📊 [`docs/benchmark.md`](docs/benchmark.md) – Benchmark comparisons and tooling for MLX vs Ollama.
+- 📊 [`docs/benchmarks/performance.md`](docs/benchmarks/performance.md) – Benchmark workflow for MLX vs MLX-Optiq (with optional Ollama mode).
 
 ## Getting started
 
 1. **Choose a runtime.** Use MLX when you need the latest Qwen models and long-context TurboQuant cache, or Ollama for quick setup and community builds. Both guides start with system requirements (Apple Silicon, macOS 13+, 16+ GB RAM).
 2. **Follow the provider runbook.** Each will walk you through installing dependencies, configuring models, and operating the OpenAI-compatible servers (`mlx-openai-server` / `mlx-openai-optiq-server` on 8000/8080, Ollama on 11434).
-3. **Connect your IDE.** Use the IDE runbooks above to point QwenCode, OpenCode, and Claude Code Router at the local endpoints once the server is running.
+3. **Connect your client.** Use the client runbooks above to point QwenCode, OpenCode, and Claude Code Router at the local endpoints once the server is running.
 
 ## Tooling & layout
 
-- `docker-compose.yml` builds the Optiq-aware FastAPI wrapper (`src/mlx-openai-optiq-server`) for TurboQuant caching and exposes it on port 8080.
+- `pyproject.toml` defines shared Python dependencies for both MLX servers; use `uv sync` once with a single `.venv`.
+- `src/mlx-openai-server/` contains the standard MLX FastAPI server on port 8000.
+- `src/mlx-openai-optiq-server/` contains the Optiq-aware FastAPI wrapper used for the TurboQuant server on port 8080.
+- MLX inference in this repo requires native macOS runtime access.
 - `scripts/` contains helpers such as `benchmark.py` and `setup-256k-context.sh` for Ollama.

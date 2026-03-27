@@ -1,6 +1,7 @@
 # Ollama Runbook
 
 Ollama bundles an OpenAI-compatible service with automatic Metal acceleration, so it is the quickest path to tool-enabled Qwen models on Apple Silicon.
+Docker workflows are not supported in this repo; use native macOS installation (`brew` + local service) for consistent behavior.
 
 ## Installation & service
 
@@ -39,16 +40,13 @@ You can also send `num_ctx` in the JSON payload when calling `/v1/chat/completio
   ps aux | grep ollama | grep -v grep
   curl http://localhost:11434/api/tags
   ```
-- Restart with `brew services restart ollama` or `pkill ollama` followed by `ollama serve`.
+- Restart with `brew services restart ollama`.
+- If running manually in a shell, stop with `Ctrl+C` and then run `ollama serve` again.
 - Control concurrency and directory locations with environment variables:
   ```bash
   export OLLAMA_NUM_PARALLEL=1
   export OLLAMA_MODELS=~/ollama-models
   ```
-
-## OpenCode & tool support
-
-Point OpenCode to the Ollama base URL (`http://localhost:11434/v1`) and prefer the same models listed above; all of them support tools and Claude-style reasoning. See `docs/IDEs/OpenCode.md` for the configuration snippet and recommended model aliases.
 
 ## Performance tips
 
@@ -58,14 +56,12 @@ Point OpenCode to the Ollama base URL (`http://localhost:11434/v1`) and prefer t
 
 ## Troubleshooting
 
-- **Tools not supported:** Ensure you are using the tool-enabled models pulled above; re-pull them if the checksum changed and update `opencode.json` accordingly.
-- **Port or host mismatch:** Verify `OLLAMA_HOST` matches the base URL configured in your IDE(s).
+- **Tools not supported:** Ensure you are using the tool-enabled models pulled above; re-pull them if the checksum changed.
+- **Port or host mismatch:** Verify `OLLAMA_HOST` matches the base URL used by your client.
 - **Model download corrupted:** Remove the model directory under `~/.ollama/models/<model>` and rerun `ollama pull`.
 - **Out of memory:** Reduce quantization (Q4 vs Q8), lower `num_ctx`, or shut down other apps.
 
 ## Resources
 
 - `scripts/setup-256k-context.sh` – create 256k Modelfiles for the curated Ollama models.
-- `docs/IDEs/OpenCode.md` – OpenCode configuration for Ollama and MLX.
-- `docs/IDEs/CCR.md` – Claude Code Router routing notes.
-- `docs/benchmark.md` – Performance comparisons between Ollama and MLX.
+- `docs/benchmarks/performance.md` – Benchmark workflow (MLX vs MLX-Optiq, with optional Ollama mode).

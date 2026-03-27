@@ -6,10 +6,41 @@ OpenCode expects an OpenAI-compatible provider description under `~/.config/open
 
 ```bash
 mkdir -p ~/.config/opencode
-ln -sf ~/code/Agents/LocalFirst/opencode.json ~/.config/opencode/opencode.json
+ln -sf opencode.json ~/.config/opencode/opencode.json
 ```
 
 Reload or restart OpenCode after changing the config.
+
+## MLX-specific setup
+
+### Configuration
+Add this provider block to `~/.config/opencode/opencode.json` if you want an explicit MLX-only setup:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "mlx-local": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "MLX Local (Qwen3.5-27B)",
+      "options": {
+        "baseURL": "http://localhost:8000/v1"
+      },
+      "models": {
+        "mlx-community/Qwen3.5-9B-OptiQ-4bit": {
+          "name": "Qwen3.5-9B-OptiQ-4bit"
+        }
+      }
+    }
+  }
+}
+```
+
+### Usage
+1. Start the MLX server (see [MLX OpenAI-Compatible Servers](../servers/MLX.md#openai-compatible-servers)).
+2. Restart OpenCode.
+3. Select "MLX Local (Qwen3.5-27B)" from the model dropdown.
+4. Start coding with local AI assistance.
 
 ## Provider highlights
 
@@ -33,3 +64,6 @@ Reload or restart OpenCode after changing the config.
 
 - Keep the MLX and Ollama servers running in the background; OpenCode will attempt to connect each time you switch models.
 - If you create new Ollama models (e.g., `*-256k`), update `opencode.json` accordingly and restart OpenCode.
+- Use at least 16K context for agentic workflows.
+- Qwen3-Coder models work best for code generation.
+- Set temperature to `0.2-0.7` for balanced creativity/accuracy.

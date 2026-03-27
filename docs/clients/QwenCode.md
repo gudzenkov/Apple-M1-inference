@@ -29,6 +29,6 @@ Keep both entries if you want to toggle between them without reconfiguring: Qwen
 
 ## Tips
 
-- Tail `/tmp/mlx-server.log` or `docker logs mlx-optiq-server` to watch requests from QwenCode.
+- Tail `logs/mlx-server.log` or `logs/mlx-optiq-server.log` to watch requests from QwenCode.
 - Ensure the base URL and API key in `.qwen/settings.json` match the entry you selected in the UI.
 - If you change sampling params in the JSON file, restart QwenCode so it reloads the config.

@@ -19,4 +19,4 @@ Claude Code Router lets you define custom routes for Claude-style models. Use it
 ## Tips
 
 - Keep multiple routes if you switch between the TurboQuant and standard MLX services.
-- When debugging, check the CCR route logs along with the local server logs at `/tmp/mlx-server.log`, `docker logs mlx-optiq-server`, or `ollama serve` output.
+- When debugging, check the CCR route logs along with the local server logs at `logs/mlx-server.log`, `logs/mlx-optiq-server.log`, or `ollama serve` output.
