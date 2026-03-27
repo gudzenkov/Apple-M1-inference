@@ -33,6 +33,51 @@ If missing, build it once:
 uv run dataset fetch-parse
 ```
 
+## Context sweep experiment (latest)
+
+Experiment date: `2026-03-27`
+
+Setup:
+- Runtime: `both` (sequential: `mlx` then `mlx-optiq`)
+- Model: alias `optiq` (`mlx-community/Qwen3.5-9B-OptiQ-4bit`)
+- Dataset source: `dataset/turboquant_2504_19874v1.md`
+- Prompt payload: abstract-focused text extracted from dataset file
+- Contexts: `8k,16k,32k,64k`
+- Samples: `1` per context
+- Output tokens: `64` per request (dataset context mode)
+
+Command:
+```bash
+uv run benchmark \
+  --runtime both \
+  --model optiq \
+  --context 8,16,32,64 \
+  --samples 1 \
+  --output benchmark_context_8_16_32_64_both.jsonl
+```
+
+Raw results:
+- `results/benchmark_context_8_16_32_64_both.jsonl`
+
+### Measurements
+
+| Runtime | Context | Prompt tokens | Completion tokens | Total time (s) | E2E tok/s | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| mlx | 8k | 7659 | 64 | 35.05 | 1.83 | 230.90 | 43.18 | 33.53 | 8.30 |
+| mlx | 16k | 15275 | 64 | 68.87 | 0.93 | 227.71 | 41.80 | 67.31 | 9.10 |
+| mlx | 32k | 30495 | 64 | 139.06 | 0.46 | 222.41 | 38.17 | 137.36 | 10.51 |
+| mlx | 64k | 60939 | 64 | 301.76 | 0.21 | 203.53 | 31.92 | 299.73 | 13.55 |
+| mlx-optiq | 8k | 7659 | 64 | 27.61 | 2.32 | 300.60 | 37.72 | 25.89 | 9.71 |
+| mlx-optiq | 16k | 15275 | 64 | 53.64 | 1.19 | 296.24 | 35.50 | 51.82 | 10.52 |
+| mlx-optiq | 32k | 30495 | 64 | 116.29 | 0.55 | 267.50 | 32.58 | 114.30 | 11.93 |
+| mlx-optiq | 64k | 60939 | 64 | 276.71 | 0.23 | 222.39 | 28.08 | 274.40 | 14.95 |
+
+Notes:
+- End-to-end `tok/s` drops with larger context because `TTFT` dominates total time.
+- `Gen tps` (decode throughput) is much more stable than end-to-end throughput.
+- RAM values above come from `memory_gb` in result rows.
+- Benchmark rows keep only compact metrics; full request/response payloads are saved as artifacts.
+
 ## Runtime modes
 
 - `--runtime mlx`: benchmark only `mlx-openai-server` on `:8000`.
