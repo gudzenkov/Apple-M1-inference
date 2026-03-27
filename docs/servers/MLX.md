@@ -80,35 +80,35 @@ This repo provides two OpenAI-compatible endpoints:
 ### 1. Standard server (port 8000)
 Foreground:
 ```bash
-python src/mlx-openai-server/mlx-openai-server.py serve
+uv run mlx-openai-server serve
 ```
 
 Background:
 ```bash
-python src/mlx-openai-server/mlx-openai-server.py start
+uv run mlx-openai-server start
 ```
 
 Stop / status:
 ```bash
-python src/mlx-openai-server/mlx-openai-server.py stop
-python src/mlx-openai-server/mlx-openai-server.py status
+uv run mlx-openai-server stop
+uv run mlx-openai-server status
 ```
 
 ### 2. Optiq server (port 8080)
 Foreground:
 ```bash
-python src/mlx-openai-optiq-server/mlx-openai-optiq-server.py serve
+uv run mlx-openai-optiq-server serve
 ```
 
 Background:
 ```bash
-python src/mlx-openai-optiq-server/mlx-openai-optiq-server.py start
+uv run mlx-openai-optiq-server start
 ```
 
 Stop / status:
 ```bash
-python src/mlx-openai-optiq-server/mlx-openai-optiq-server.py stop
-python src/mlx-openai-optiq-server/mlx-openai-optiq-server.py status
+uv run mlx-openai-optiq-server stop
+uv run mlx-openai-optiq-server status
 ```
 
 ### Server checks

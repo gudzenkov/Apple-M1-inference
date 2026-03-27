@@ -1,9 +1,0 @@
-aliases:
-  optiq: mlx-community/Qwen3.5-9B-OptiQ-4bit
-  optiq-9b: mlx-community/Qwen3.5-9B-OptiQ-4bit
-  opus: mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit
-  opus-27b: mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit
-  claw: mlx-community/Huihui-Qwen3.5-27B-Claude-4.6-Opus-abliterated-4bit
-  claw-27b: mlx-community/Huihui-Qwen3.5-27B-Claude-4.6-Opus-abliterated-4bit
-  coder: mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit
-  coder-30b: mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit

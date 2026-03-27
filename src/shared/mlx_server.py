@@ -13,9 +13,8 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from fastapi import FastAPI
-from model_aliases import get_default_model_id, resolve_model_alias
+from src.shared.models import get_default_model_id, resolve_model_reference
 
-DEFAULT_MODEL_ID = get_default_model_id()
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_START_TIMEOUT_SEC = 300
 
@@ -42,8 +41,13 @@ class ServerControl:
         return f"http://{self.host}:{self.port}/internal/shutdown"
 
 
-def resolve_runtime(default_port: int, port_env_name: str = "PORT") -> Tuple[str, str, int]:
-    model_id = resolve_model_alias(os.getenv("HUGGINGFACE_MODEL", DEFAULT_MODEL_ID))
+def resolve_runtime(
+    default_port: int,
+    port_env_name: str = "PORT",
+    model_runtime: str = "mlx",
+) -> Tuple[str, str, int]:
+    model_ref = os.getenv("HUGGINGFACE_MODEL", get_default_model_id(runtime=model_runtime))
+    model_id = resolve_model_reference(model_ref, runtime=model_runtime)
     host = os.getenv("HOST", DEFAULT_HOST)
     port_raw = os.getenv("PORT") or os.getenv(port_env_name) or str(default_port)
     port = int(port_raw)

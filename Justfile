@@ -1,37 +1,37 @@
 set shell := ["bash", "-cu"]
+set dotenv-load := true
 
-model := env_var("HUGGINGFACE_MODEL")
-host := env_var("HOST")
-mlx_port := env_var("MLX_PORT")
-optiq_port := env_var("OPTIQ_PORT")
+model := env_var_or_default("HUGGINGFACE_MODEL", "optiq")
+host := env_var_or_default("HOST", "127.0.0.1")
+mlx_port := env_var_or_default("MLX_PORT", "8000")
+optiq_port := env_var_or_default("OPTIQ_PORT", "8080")
 
 help:
     @echo "Just commands:"
-    @echo "  export HUGGINGFACE_MODEL=<hf-repo-id>"
+    @echo "  Optional env (.env is auto-loaded):"
+    @echo "    HUGGINGFACE_MODEL=<hf-repo-id-or-alias>"
     @echo "    aliases: optiq/optiq-9b, opus/opus-27b, claw/claw-27b, coder/coder-30b"
-    @echo "  export HOST=<host>"
-    @echo "  export MLX_PORT=<port>"
-    @echo "  export OPTIQ_PORT=<port>"
     @echo "  just mlx <start|stop|status> [model]"
     @echo "  just optiq <start|stop|status> [model]"
     @echo "  just stop-all"
     @echo "  just test <mlx|optiq|all> [model]"
-    @echo "  just bench [args...]      # runs dataset=all"
-    @echo "  just bench-dataset <quick|long|all> [args...]"
+    @echo "  just bench [args...]"
+    @echo "  uv run mlx-cli --list-models"
+    @echo "  uv run mlx-cli -m optiq -p \"Say hi\" --max-tokens 32 --json"
 
 mlx action model=model:
     @case "{{action}}" in \
-      start) HUGGINGFACE_MODEL="{{model}}" .venv/bin/python src/mlx-openai-server/mlx-openai-server.py start ;; \
-      stop) .venv/bin/python src/mlx-openai-server/mlx-openai-server.py stop ;; \
-      status) .venv/bin/python src/mlx-openai-server/mlx-openai-server.py status ;; \
+      start) HUGGINGFACE_MODEL="{{model}}" uv run mlx-openai-server start ;; \
+      stop) uv run mlx-openai-server stop ;; \
+      status) uv run mlx-openai-server status ;; \
       *) echo "Invalid action '{{action}}'. Use start|stop|status." >&2; exit 2 ;; \
     esac
 
 optiq action model=model:
     @case "{{action}}" in \
-      start) HUGGINGFACE_MODEL="{{model}}" .venv/bin/python src/mlx-openai-optiq-server/mlx-openai-optiq-server.py start ;; \
-      stop) .venv/bin/python src/mlx-openai-optiq-server/mlx-openai-optiq-server.py stop ;; \
-      status) .venv/bin/python src/mlx-openai-optiq-server/mlx-openai-optiq-server.py status ;; \
+      start) HUGGINGFACE_MODEL="{{model}}" uv run mlx-openai-optiq-server start ;; \
+      stop) uv run mlx-openai-optiq-server stop ;; \
+      status) uv run mlx-openai-optiq-server status ;; \
       *) echo "Invalid action '{{action}}'. Use start|stop|status." >&2; exit 2 ;; \
     esac
 
@@ -42,15 +42,11 @@ stop-all:
 test target model=model:
     @case "{{target}}" in \
       mlx) \
-        curl -fsS "http://{{host}}:{{mlx_port}}/v1/models" | python3 -m json.tool; \
-        curl -fsS "http://{{host}}:{{mlx_port}}/v1/chat/completions" \
-          -H "Content-Type: application/json" \
-          -d '{"model":"{{model}}","messages":[{"role":"user","content":"Say hi in 5 words."}],"max_tokens":32}' | python3 -m json.tool ;; \
+        uv run mlx-cli --server mlx --base-url "http://{{host}}:{{mlx_port}}" --list-models --json; \
+        uv run mlx-cli --server mlx --base-url "http://{{host}}:{{mlx_port}}" -m "{{model}}" -p "Say hi in 5 words." --max-tokens 32 --json ;; \
       optiq) \
-        curl -fsS "http://{{host}}:{{optiq_port}}/v1/models" | python3 -m json.tool; \
-        curl -fsS "http://{{host}}:{{optiq_port}}/v1/chat/completions" \
-          -H "Content-Type: application/json" \
-          -d '{"model":"{{model}}","messages":[{"role":"user","content":"Say hi in 5 words."}],"max_tokens":32}' | python3 -m json.tool ;; \
+        uv run mlx-cli --server optiq --base-url "http://{{host}}:{{optiq_port}}" --list-models --json; \
+        uv run mlx-cli --server optiq --base-url "http://{{host}}:{{optiq_port}}" -m "{{model}}" -p "Say hi in 5 words." --max-tokens 32 --json ;; \
       all) \
         just test mlx "{{model}}"; \
         just test optiq "{{model}}" ;; \
@@ -58,7 +54,4 @@ test target model=model:
     esac
 
 bench *args:
-    @.venv/bin/python scripts/benchmark.py --dataset all {{args}}
-
-bench-dataset dataset *args:
-    @.venv/bin/python scripts/benchmark.py --dataset "{{dataset}}" {{args}}
+    @uv run benchmark {{args}}

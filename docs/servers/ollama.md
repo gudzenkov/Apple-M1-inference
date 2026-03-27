@@ -21,7 +21,8 @@ You can also run `ollama serve` in a shell if you prefer manual control. Ollama 
   ollama pull ukjin/Qwen3-30B-A3B-Thinking-2507-Deepseek-v3.1-Distill
   ```
 - List, inspect, or delete with `ollama list`, `ollama show <model>`, `ollama rm <model>`.
-- Use `scripts/setup-256k-context.sh` to create 256k-context Modelfiles and `ollama create` wrappers so every model runs at `num_ctx 262144`.
+- Use `scripts/ollama-build-models.sh` to create 256k-context Modelfiles and `ollama create` wrappers for every configured Ollama model.
+- The script reads model definitions from `configs/models.yaml` and selects entries with `runtime: ollama`.
 
 ## API & context length
 
@@ -63,5 +64,5 @@ You can also send `num_ctx` in the JSON payload when calling `/v1/chat/completio
 
 ## Resources
 
-- `scripts/setup-256k-context.sh` – create 256k Modelfiles for the curated Ollama models.
+- `scripts/ollama-build-models.sh` – create 256k Modelfiles for configured Ollama models (`runtime: ollama` in `configs/models.yaml`).
 - `docs/benchmarks/performance.md` – Benchmark workflow (MLX vs MLX-Optiq, with optional Ollama mode).

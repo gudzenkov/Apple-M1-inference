@@ -10,8 +10,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import uvicorn
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-from mlx_server_shared import (  # noqa: E402
+from src.shared.mlx_server import (
     ServerControl,
     handle_management_command,
     install_shutdown_endpoint,
@@ -94,7 +93,11 @@ def build_app(model_id: str) -> FastAPI:
 
 
 def main() -> int:
-    model_id, host, port = resolve_runtime(default_port=8000, port_env_name="MLX_PORT")
+    model_id, host, port = resolve_runtime(
+        default_port=8000,
+        port_env_name="MLX_PORT",
+        model_runtime="mlx",
+    )
 
     control = ServerControl(
         server_name="mlx-openai-server",

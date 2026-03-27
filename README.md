@@ -33,7 +33,8 @@ Local-first guides for running large language models on Apple Silicon, with sepa
 ## Tooling & layout
 
 - `pyproject.toml` defines shared Python dependencies for both MLX servers; use `uv sync` once with a single `.venv`.
-- `src/mlx-openai-server/` contains the standard MLX FastAPI server on port 8000.
-- `src/mlx-openai-optiq-server/` contains the Optiq-aware FastAPI wrapper used for the TurboQuant server on port 8080.
+- Use `uv run benchmark`, `uv run dataset`, and `uv run mlx-cli` for local tooling commands.
+- Use `uv run mlx-openai-server` and `uv run mlx-openai-optiq-server` to run or manage servers.
+- `src/servers/` contains the server entrypoints.
 - MLX inference in this repo requires native macOS runtime access.
-- `scripts/` contains helpers such as `benchmark.py` and `setup-256k-context.sh` for Ollama.
+- `scripts/` contains shell utilities (for example Ollama model build helpers).

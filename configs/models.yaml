@@ -1,0 +1,53 @@
+models:
+  - qwen3.5-9b-optiq-q4:
+      model: mlx-community/Qwen3.5-9B-OptiQ-4bit
+      runtime: mlx
+      size: 9
+      quant: 4
+      aliases:
+        - optiq
+        - optiq-9b
+  - qwen3.5-27b-opus-q4:
+      model: mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit
+      runtime: mlx
+      size: 27
+      quant: 4
+      aliases:
+        - opus
+        - opus-27b
+  - qwen3.5-27b-claw-q4:
+      model: mlx-community/Huihui-Qwen3.5-27B-Claude-4.6-Opus-abliterated-4bit
+      runtime: mlx
+      size: 27
+      quant: 4
+      aliases:
+        - claw
+        - claw-27b
+  - qwen3-coder-30b-a3b-q4:
+      model: mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit
+      runtime: mlx
+      size: 30
+      quant: 4
+      aliases:
+        - coder
+        - coder-30b
+  - ollama-qwen3.5-9b:
+      model: qwen3.5:9b
+      runtime: ollama
+      build_name: qwen3.5-9b
+      num_ctx: 262144
+  - ollama-qwen3-coder-30b:
+      model: SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL
+      runtime: ollama
+      build_name: qwen3-coder-30b
+      num_ctx: 262144
+  - ollama-opus-27b:
+      model: sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M
+      runtime: ollama
+      build_name: opus-27b
+      num_ctx: 262144
+  - ollama-deepseek-30b:
+      model: ukjin/Qwen3-30B-A3B-Thinking-2507-Deepseek-v3.1-Distill
+      runtime: ollama
+      build_name: deepseek-30b
+      num_ctx: 262144
