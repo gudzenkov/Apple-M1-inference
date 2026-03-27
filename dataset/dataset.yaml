@@ -1,0 +1,6 @@
+sources:
+  - name: turboquant
+    default: true
+    url: https://arxiv.org/html/2504.19874v1
+    html_path: dataset/turboquant_2504_19874v1.html
+    md_path: dataset/turboquant_2504_19874v1.md

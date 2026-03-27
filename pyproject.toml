@@ -5,11 +5,13 @@ description = "Local MLX inference servers for standard and Optiq runtimes"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi",
+  "html-to-markdown",
   "huggingface-hub",
   "mlx>=0.31.1",
   "mlx-lm>=0.30.7",
   "mlx-optiq",
   "pydantic",
+  "pyyaml",
   "requests",
   "uvicorn",
 ]
