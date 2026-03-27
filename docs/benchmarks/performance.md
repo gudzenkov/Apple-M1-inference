@@ -13,8 +13,8 @@ cd "$(git rev-parse --show-toplevel)"
 source .venv/bin/activate
 
 # Default benchmark run from Justfile:
-# - quick: 32k context, 5 fast samples
-# - long: 256k context, 5 large-payload samples (TurboQuant paper content)
+# - quick: 8k context, 5 fast samples
+# - long-context: 256k context, 5 large-payload samples (TurboQuant paper content)
 just bench
 
 # Equivalent direct command
@@ -22,8 +22,12 @@ uv run benchmark --dataset all
 ```
 
 Results are written to `results/benchmark_<dataset>.jsonl` by default.
+Each run also creates:
+- `data/<experiment_name_with_global_params_timestamp>/summary.json`
+- `data/<experiment_name_with_global_params_timestamp>/summary.md`
+- `data/<experiment_name_with_global_params_timestamp>/<run_param>/{payload,response}.json`
 
-The long dataset reads from `dataset/turboquant_2504_19874v1.md`.
+The long-context dataset reads from `dataset/turboquant_2504_19874v1.md`.
 If missing, build it once:
 ```bash
 uv run dataset fetch-parse
@@ -61,7 +65,7 @@ uv run benchmark --dataset quick --runtime both
 # Run long-context dataset only
 uv run benchmark --dataset long --runtime both
 
-# Run all datasets (quick + long) in one execution
+# Run all datasets (quick + long-context) in one execution
 uv run benchmark --dataset all --runtime both
 
 # Custom prompt and output file (stored under results/)
@@ -76,11 +80,25 @@ uv run benchmark \
 
 Each JSONL line includes:
 - `total_time`
+- `prompt_tokens`
 - `completion_tokens`
+- `total_tokens`
 - `tokens_per_second`
+- `prompt_tps`
+- `generation_tps`
+- `ttft_sec`
+- `server_total_time_sec`
 - `memory_gb`
+- `payload_path`
+- `response_path`
 
-`memory_gb` is the peak resident memory observed during the request window (prefill + generation), not post-run memory.
+Memory metrics:
+- `memory_gb`: canonical peak RAM field used by benchmark output.
+  For `mlx` / `mlx-optiq`, it is sourced from server-side peak memory stats.
+
+Artifact layout:
+- `data/<experiment_name_with_global_params_timestamp>/<run_param>/payload.json`
+- `data/<experiment_name_with_global_params_timestamp>/<run_param>/response.json`
 
 ## Output schema
 
@@ -89,32 +107,35 @@ Each JSONL line includes:
   "success": true,
   "runtime": "mlx-optiq",
   "model": "mlx-community/Qwen3.5-9B-OptiQ-4bit",
-  "prompt": "Explain async/await in JavaScript",
   "timestamp": "2026-03-27T10:00:00+00:00",
   "total_time": 8.5,
-  "prompt_tokens": 0,
+  "prompt_tokens": 3000,
   "completion_tokens": 100,
-  "total_tokens": 100,
+  "total_tokens": 3100,
   "tokens_per_second": 11.76,
-  "memory_gb": 9.2,
-  "response_preview": "async/await is ..."
+  "prompt_tps": 245.1,
+  "generation_tps": 34.8,
+  "ttft_sec": 7.9,
+  "server_total_time_sec": 8.4,
+  "memory_gb": 10.7,
+  "payload_path": "data/benchmark_context-8k-16k-32k-64k_both_optiq_s1_mt100_20260327T161403Z/mlx-optiq__mlx-community-Qwen3.5-9B-OptiQ-4bit__context-8k-1/payload.json",
+  "response_path": "data/benchmark_context-8k-16k-32k-64k_both_optiq_s1_mt100_20260327T161403Z/mlx-optiq__mlx-community-Qwen3.5-9B-OptiQ-4bit__context-8k-1/response.json"
 }
 ```
 
 ## Quick analysis
 
 ```bash
-# Inspect all results
-jq '.' results/benchmark_quick.jsonl
-jq '.' results/benchmark_long.jsonl
+# Inspect context sweep results
+jq '.' results/benchmark_context_8_16_32_64_both.jsonl
 
 # Average throughput by runtime
 jq -s 'group_by(.runtime) | map({runtime: .[0].runtime, avg_tps: (map(.tokens_per_second) | add / length)})' \
-  results/benchmark_quick.jsonl
+  results/benchmark_context_8_16_32_64_both.jsonl
 
-# Average peak memory by runtime
-jq -s 'group_by(.runtime) | map({runtime: .[0].runtime, avg_mem_gb: (map(.memory_gb // 0) | add / length)})' \
-  results/benchmark_long.jsonl
+# Average peak RAM by runtime
+jq -s 'group_by(.runtime) | map({runtime: .[0].runtime, avg_peak_ram_gb: (map(.memory_gb // 0) | add / length)})' \
+  results/benchmark_context_8_16_32_64_both.jsonl
 ```
 
 ## Resources

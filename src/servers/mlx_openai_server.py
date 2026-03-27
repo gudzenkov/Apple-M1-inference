@@ -25,6 +25,16 @@ def build_app(model_id: str) -> FastAPI:
     app = FastAPI()
     install_shutdown_endpoint(app, "mlx-openai-server")
 
+    def safe_token_count(text: str) -> int:
+        if not text:
+            return 0
+        try:
+            if hasattr(tokenizer, "encode"):
+                return int(len(tokenizer.encode(text)))
+        except Exception:  # noqa: BLE001
+            pass
+        return max(1, len(text.split()))
+
     class Message(BaseModel):
         role: str
         content: Any
@@ -49,6 +59,7 @@ def build_app(model_id: str) -> FastAPI:
 
     @app.post("/v1/chat/completions")
     def chat(req: ChatRequest) -> dict[str, Any]:
+        started_at = time.perf_counter()
         prompt = tokenizer.apply_chat_template(
             [m.model_dump() for m in req.messages],
             add_generation_prompt=True,
@@ -58,6 +69,12 @@ def build_app(model_id: str) -> FastAPI:
         sampler = make_sampler(temp=req.temperature or 0.0)
 
         text = ""
+        prompt_tokens = 0
+        completion_tokens = 0
+        prompt_tps = 0.0
+        generation_tps = 0.0
+        peak_memory_gb = 0.0
+        first_token_at: Optional[float] = None
         for chunk in stream_generate(
             model,
             tokenizer,
@@ -69,6 +86,25 @@ def build_app(model_id: str) -> FastAPI:
                 text += chunk.text
             else:
                 text += str(chunk)
+            if first_token_at is None:
+                first_token_at = time.perf_counter()
+            prompt_tokens = max(prompt_tokens, int(getattr(chunk, "prompt_tokens", 0) or 0))
+            completion_tokens = max(completion_tokens, int(getattr(chunk, "generation_tokens", 0) or 0))
+            prompt_tps = float(getattr(chunk, "prompt_tps", prompt_tps) or 0.0)
+            generation_tps = float(getattr(chunk, "generation_tps", generation_tps) or 0.0)
+            peak_memory_gb = max(peak_memory_gb, float(getattr(chunk, "peak_memory", 0.0) or 0.0))
+
+        total_time = time.perf_counter() - started_at
+        if prompt_tokens <= 0:
+            prompt_tokens = safe_token_count(prompt)
+        if completion_tokens <= 0:
+            completion_tokens = safe_token_count(text)
+        total_tokens = prompt_tokens + completion_tokens
+        ttft_sec = (
+            (first_token_at - started_at)
+            if first_token_at is not None
+            else total_time
+        )
 
         now = int(time.time())
         return {
@@ -84,7 +120,18 @@ def build_app(model_id: str) -> FastAPI:
                 },
                 "finish_reason": "stop",
             }],
-            "usage": {},
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+            },
+            "perf": {
+                "ttft_sec": round(ttft_sec, 4),
+                "total_time_sec": round(total_time, 4),
+                "prompt_tps": round(prompt_tps, 4),
+                "generation_tps": round(generation_tps, 4),
+                "peak_memory_gb": round(peak_memory_gb, 4),
+            },
         }
 
     return app

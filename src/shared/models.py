@@ -202,6 +202,21 @@ def get_models_for_runtime(runtime: str) -> List[str]:
     return selected
 
 
+def get_model_key(model_id: str, runtime: str | None = None) -> str:
+    target = model_id.strip()
+    if not target:
+        raise ValueError("Model id is empty")
+    for entry in load_models():
+        if entry["model"] != target:
+            continue
+        if _runtime_matches(entry["runtime"], runtime):
+            return entry["key"]
+    for entry in load_models():
+        if entry["model"] == target:
+            return entry["key"]
+    raise ValueError(f"Model id '{model_id}' is not configured in {MODEL_ALIASES_PATH}")
+
+
 def get_default_model_id(runtime: str | None = None) -> str:
     if runtime is None:
         return load_models()[0]["model"]

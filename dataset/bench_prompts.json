@@ -1,0 +1,9 @@
+{
+  "quick_seed": "Local inference benchmarking focuses on latency, throughput, memory, context handling, and response stability across repeated samples. Use deterministic prompts and consistent runtime configuration for fair comparisons.",
+  "quick_instruction": "Read the context and answer briefly.",
+  "quick_question": "Summarize the benchmark intent in <= 20 words.",
+  "long_intro": "The context below is extracted from the TurboQuant paper.",
+  "long_question": "List 3 key findings from this paper context.",
+  "context_intro": "The context below is an abstract-focused excerpt from the TurboQuant paper.",
+  "context_question": "Summarize key benchmark constraints in <= 20 words."
+}

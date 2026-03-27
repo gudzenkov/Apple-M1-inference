@@ -118,3 +118,8 @@ extras/
 
 # Allow .vscode/settings.json for dotfiles configuration
 !.vscode/settings.json
+
+# Data
+data/
+dataset/*.html
+results/

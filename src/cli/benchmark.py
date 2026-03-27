@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from src.bench.dataset_tools import DEFAULT_DATASET_MD
+from src.bench.datasets import parse_context_list
 from src.bench.runner import run_benchmark
 
 
@@ -12,7 +13,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--dataset",
         choices=["quick", "long", "all"],
         default="all",
-        help="Dataset profile: quick (32k), long (256k), or all",
+        help="Dataset profile: quick (8k), long-context (256k), or all",
+    )
+    parser.add_argument(
+        "--context",
+        default=None,
+        help=(
+            "Comma-separated context sizes in k-tokens (overrides --dataset). "
+            "Allowed: 8,16,32,64,128,256 (with optional 'k' suffix)"
+        ),
     )
     parser.add_argument(
         "--runtime",
@@ -34,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dataset-file",
         default=str(DEFAULT_DATASET_MD),
-        help="Markdown dataset file used by long/all dataset modes",
+        help="Markdown dataset file used by long-context/all dataset modes",
     )
     parser.add_argument(
         "--prompt",
@@ -82,6 +91,13 @@ def main() -> int:
 
     if args.samples <= 0:
         raise SystemExit("--samples must be > 0")
+    if args.context:
+        try:
+            args.contexts_k = parse_context_list(args.context)
+        except RuntimeError as exc:
+            raise SystemExit(str(exc))
+    else:
+        args.contexts_k = None
 
     return run_benchmark(args)
 

@@ -27,6 +27,7 @@ CONFIGS: Dict[str, Dict[str, Any]] = {
         "start_cmd": ["uv", "run", "mlx-openai-server", "serve"],
         "log_file": "logs/mlx-server.log",
         "process_hint": "mlx_openai_server",
+        "max_context_tokens": 256000,
     },
     "mlx-optiq": {
         "managed_server": True,
@@ -39,6 +40,7 @@ CONFIGS: Dict[str, Dict[str, Any]] = {
         "start_cmd": ["uv", "run", "mlx-openai-optiq-server", "serve"],
         "log_file": "logs/mlx-optiq-server.log",
         "process_hint": "mlx_openai_optiq_server",
+        "max_context_tokens": 256000,
     },
     "ollama": {
         "managed_server": False,
@@ -49,6 +51,7 @@ CONFIGS: Dict[str, Dict[str, Any]] = {
         "default_model": DEFAULT_OLLAMA_MODEL,
         "models": OLLAMA_MODELS,
         "process_hint": "ollama",
+        "max_context_tokens": 262144,
     },
 }
 
