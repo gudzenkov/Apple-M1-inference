@@ -6,6 +6,25 @@ Benchmark workflow for comparing the two local MLX inference servers:
 
 The benchmark runner manages server lifecycle to avoid OOM from running both MLX servers at once.
 
+## Measurements
+
+| Runtime | Context | Prompt tokens | Completion tokens | Total time (s) | E2E tok/s | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| mlx | 8k | 7659 | 64 | 35.05 | 1.83 | 230.90 | 43.18 | 33.53 | 8.30 |
+| mlx | 16k | 15275 | 64 | 68.87 | 0.93 | 227.71 | 41.80 | 67.31 | 9.10 |
+| mlx | 32k | 30495 | 64 | 139.06 | 0.46 | 222.41 | 38.17 | 137.36 | 10.51 |
+| mlx | 64k | 60939 | 64 | 301.76 | 0.21 | 203.53 | 31.92 | 299.73 | 13.55 |
+| mlx-optiq | 8k | 7659 | 64 | 27.61 | 2.32 | 300.60 | 37.72 | 25.89 | 9.71 |
+| mlx-optiq | 16k | 15275 | 64 | 53.64 | 1.19 | 296.24 | 35.50 | 51.82 | 10.52 |
+| mlx-optiq | 32k | 30495 | 64 | 116.29 | 0.55 | 267.50 | 32.58 | 114.30 | 11.93 |
+| mlx-optiq | 64k | 60939 | 64 | 276.71 | 0.23 | 222.39 | 28.08 | 274.40 | 14.95 |
+
+Notes:
+- End-to-end `tok/s` drops with larger context because `TTFT` dominates total time.
+- `Gen tps` (decode throughput) is much more stable than end-to-end throughput.
+- RAM values above come from `memory_gb` in result rows.
+- Benchmark rows keep only compact metrics; full request/response payloads are saved as artifacts.
+
 ## Quick start
 
 ```bash
@@ -38,6 +57,7 @@ uv run dataset fetch-parse
 Experiment date: `2026-03-27`
 
 Setup:
+- Hardware: M1 Mac (`64GB` LPDDR5 unified memory, `24` GPU cores)
 - Runtime: `both` (sequential: `mlx` then `mlx-optiq`)
 - Model: alias `optiq` (`mlx-community/Qwen3.5-9B-OptiQ-4bit`)
 - Dataset source: `dataset/turboquant_2504_19874v1.md`
@@ -58,25 +78,6 @@ uv run benchmark \
 
 Raw results:
 - `results/benchmark_context_8_16_32_64_both.jsonl`
-
-### Measurements
-
-| Runtime | Context | Prompt tokens | Completion tokens | Total time (s) | E2E tok/s | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| mlx | 8k | 7659 | 64 | 35.05 | 1.83 | 230.90 | 43.18 | 33.53 | 8.30 |
-| mlx | 16k | 15275 | 64 | 68.87 | 0.93 | 227.71 | 41.80 | 67.31 | 9.10 |
-| mlx | 32k | 30495 | 64 | 139.06 | 0.46 | 222.41 | 38.17 | 137.36 | 10.51 |
-| mlx | 64k | 60939 | 64 | 301.76 | 0.21 | 203.53 | 31.92 | 299.73 | 13.55 |
-| mlx-optiq | 8k | 7659 | 64 | 27.61 | 2.32 | 300.60 | 37.72 | 25.89 | 9.71 |
-| mlx-optiq | 16k | 15275 | 64 | 53.64 | 1.19 | 296.24 | 35.50 | 51.82 | 10.52 |
-| mlx-optiq | 32k | 30495 | 64 | 116.29 | 0.55 | 267.50 | 32.58 | 114.30 | 11.93 |
-| mlx-optiq | 64k | 60939 | 64 | 276.71 | 0.23 | 222.39 | 28.08 | 274.40 | 14.95 |
-
-Notes:
-- End-to-end `tok/s` drops with larger context because `TTFT` dominates total time.
-- `Gen tps` (decode throughput) is much more stable than end-to-end throughput.
-- RAM values above come from `memory_gb` in result rows.
-- Benchmark rows keep only compact metrics; full request/response payloads are saved as artifacts.
 
 ## Runtime modes
 
