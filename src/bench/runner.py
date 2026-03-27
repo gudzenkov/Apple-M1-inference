@@ -121,14 +121,18 @@ def _normalize_text(value: str) -> str:
 
 
 def _extract_retrieval_answer(raw_text: str) -> str:
+    match = re.search(r"\b(NIAH-[A-Z]+-\d+K-S\d{2}-\d{6})\b", raw_text)
+    if match:
+        return match.group(1)
     for line in raw_text.splitlines():
         candidate = line.strip()
         if not candidate:
             continue
         if candidate.lower().startswith("answer:"):
             candidate = candidate.split(":", 1)[1].strip()
+        candidate = candidate.strip(" \t\r\n\"'`.,;:!?")
         return _normalize_text(candidate)
-    return _normalize_text(raw_text)
+    return _normalize_text(raw_text.strip(" \t\r\n\"'`.,;:!?"))
 
 
 def _levenshtein_distance(a: str, b: str) -> int:
