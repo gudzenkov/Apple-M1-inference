@@ -108,19 +108,19 @@ def _needle_fields(mode: str, context_k: int, sample_index: int) -> Dict[str, st
     }
 
 
-def _embed_needle(payload_words: List[str], needle_text: str, position: int) -> tuple[str, int]:
+def _embed_needle(payload_words: List[str], needle_text: str, position: int) -> tuple[List[str], int]:
     needle_words = needle_text.split()
     if not needle_words:
-        return " ".join(payload_words), 0
+        return list(payload_words), 0
 
     if not payload_words:
-        return needle_text, 0
+        return needle_words, 0
 
     max_pos = max(0, len(payload_words) - len(needle_words))
     pos = min(max(position, 0), max_pos)
     mutated = list(payload_words)
     mutated[pos:pos + len(needle_words)] = needle_words
-    return " ".join(mutated), pos
+    return mutated, pos
 
 
 def _render_needle(prompts: Dict[str, str], needle_key: str, needle_value: str) -> str:
@@ -136,6 +136,15 @@ def _render_needle(prompts: Dict[str, str], needle_key: str, needle_value: str) 
         )
 
 
+def _render_query(template: str, needle_key: str) -> str:
+    try:
+        return template.format(needle_key=needle_key)
+    except KeyError as exc:
+        raise RuntimeError(
+            f"Invalid query placeholder: {exc}. Allowed placeholders: {needle_key}"
+        )
+
+
 def build_short_cases(samples: int) -> List[Dict[str, Any]]:
     prompts = _load_bench_prompts()
     target_words = max(1, int(SHORT_CONTEXT_TOKENS * CONTEXT_FILL_RATIO))
@@ -148,16 +157,18 @@ def build_short_cases(samples: int) -> List[Dict[str, Any]]:
         payload_words = _build_payload(source_words, target_words=target_words, offset=idx * 257)
         needle = _needle_fields(mode="short", context_k=context_k, sample_index=sample_index)
         needle_text = _render_needle(prompts, needle["needle_key"], needle["needle_value"])
-        payload, needle_position = _embed_needle(
+        payload_words, needle_position = _embed_needle(
             payload_words=payload_words,
             needle_text=needle_text,
             position=(context_k * 173) + (idx * 331),
         )
+        payload = " ".join(payload_words)
+        query = _render_query(prompts["short_query"], needle["needle_key"])
         prompt = (
             f"[short-8k sample {sample_index}/{samples}] "
             f"{prompts['short_intro']}\n\n"
             f"{payload}\n\n"
-            f"Question: {prompts['short_query']}\n"
+            f"Question: {query}\n"
             f"{prompts['answer_format']}"
         )
         cases.append(
@@ -197,38 +208,61 @@ def build_long_cases(
     for context_k in resolved_contexts:
         context_tokens = context_k * 1000
         target_words = max(1, int(context_tokens * CONTEXT_FILL_RATIO))
+        shared_payload_words = _build_payload(
+            source_words,
+            target_words=target_words,
+            offset=(context_k * 37),
+        )
+        context_needles: List[Dict[str, Any]] = []
         for idx in range(samples):
             sample_index = idx + 1
-            payload_words = _build_payload(
-                source_words,
-                target_words=target_words,
-                offset=(context_k * 37) + (idx * 997),
-            )
             needle = _needle_fields(mode="long", context_k=context_k, sample_index=sample_index)
             needle_text = _render_needle(prompts, needle["needle_key"], needle["needle_value"])
-            payload, needle_position = _embed_needle(
-                payload_words=payload_words,
+            shared_payload_words, needle_position = _embed_needle(
+                payload_words=shared_payload_words,
                 needle_text=needle_text,
                 position=(context_k * 173) + (idx * 331),
             )
-            prompt = (
-                f"[long-{context_k}k sample {sample_index}/{samples}] "
-                f"{prompts['long_intro']}\n\n"
-                f"{payload}\n\n"
-                f"Question: {prompts['long_query']}\n"
+            context_needles.append(
+                {
+                    **needle,
+                    "sample_index": sample_index,
+                    "needle_position": needle_position,
+                }
+            )
+
+        shared_payload = " ".join(shared_payload_words)
+        prompt_prefix = (
+            f"[long-{context_k}k shared-context needles {samples}] "
+            f"{prompts['long_intro']}\n\n"
+            f"{shared_payload}\n\n"
+        )
+        prompt_cache_group = f"long-{context_k}k"
+        for needle_meta in context_needles:
+            sample_index = int(needle_meta["sample_index"])
+            query = _render_query(prompts["long_query"], str(needle_meta["needle_key"]))
+            prompt_suffix = (
+                f"Question: {query}\n"
                 f"{prompts['answer_format']}"
+            )
+            prompt = (
+                f"{prompt_prefix}"
+                f"{prompt_suffix}"
             )
             cases.append(
                 {
                     "dataset": "long",
                     "case_name": f"long-{context_k}k-{sample_index}",
                     "prompt": prompt,
+                    "prompt_prefix": prompt_prefix,
+                    "prompt_suffix": prompt_suffix,
+                    "prompt_cache_group": prompt_cache_group,
                     "max_tokens": LONG_MAX_TOKENS,
                     "context_tokens_target": context_tokens,
                     "payload_source": str(dataset_file),
-                    "needle_key": needle["needle_key"],
-                    "needle_value": needle["needle_value"],
-                    "needle_position": needle_position,
+                    "needle_key": str(needle_meta["needle_key"]),
+                    "needle_value": str(needle_meta["needle_value"]),
+                    "needle_position": int(needle_meta["needle_position"]),
                 }
             )
     return cases

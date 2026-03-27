@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 import time
@@ -10,7 +11,11 @@ from typing import Any, Dict, List, Optional
 
 from src.bench.config import CONFIGS, resolve_runtimes, select_models
 from src.bench.datasets import build_cases
-from src.bench.metrics import benchmark_model
+from src.bench.metrics import (
+    benchmark_model,
+    clear_prompt_cache,
+    prefill_prompt_cache,
+)
 from src.bench.process import (
     ensure_model_downloaded,
     start_managed_server,
@@ -54,7 +59,8 @@ def _experiment_group(args: Any) -> str:
         dataset_part = _dataset_name_from_file(str(args.dataset_file))
     else:
         dataset_part = "short"
-    return _slug(f"{runtime_part}-{dataset_part}-s{args.samples}-mt{args.max_tokens}")
+    cache_part = "pc1" if bool(getattr(args, "use_prompt_cache", False)) else "pc0"
+    return _slug(f"{runtime_part}-{dataset_part}-s{args.samples}-mt{args.max_tokens}-{cache_part}")
 
 
 def _sample_id(case_name: str) -> str:
@@ -101,6 +107,13 @@ def _avg(values: List[float]) -> float:
     if not values:
         return 0.0
     return sum(values) / len(values)
+
+
+def _ci95_half_width_for_rate(p: float, n: int) -> float:
+    if n <= 0:
+        return 0.0
+    p = max(0.0, min(1.0, p))
+    return 1.96 * math.sqrt((p * (1.0 - p)) / float(n))
 
 
 def _normalize_text(value: str) -> str:
@@ -165,6 +178,7 @@ def _runtime_summary_rows(results: List[Dict[str, Any]], runtimes: List[str]) ->
                     "avg_memory_gb": 0.0,
                     "avg_retrieval_score_float": 0.0,
                     "retrieval_exact_rate": 0.0,
+                    "retrieval_exact_ci95_half_width": 0.0,
                 }
             )
             continue
@@ -173,6 +187,7 @@ def _runtime_summary_rows(results: List[Dict[str, Any]], runtimes: List[str]) ->
         retrieval_exact_rate = _avg(
             [1.0 if bool(r.get("retrieval_exact", False)) else 0.0 for r in retrieval_rows]
         )
+        retrieval_exact_ci95_half_width = _ci95_half_width_for_rate(retrieval_exact_rate, len(retrieval_rows))
         rows.append(
             {
                 "runtime": runtime,
@@ -189,6 +204,7 @@ def _runtime_summary_rows(results: List[Dict[str, Any]], runtimes: List[str]) ->
                 "avg_memory_gb": round(_avg([float(r.get("memory_gb", 0.0) or 0.0) for r in runtime_results]), 3),
                 "avg_retrieval_score_float": round(_avg(retrieval_scores), 3),
                 "retrieval_exact_rate": round(retrieval_exact_rate, 3),
+                "retrieval_exact_ci95_half_width": round(retrieval_exact_ci95_half_width, 3),
             }
         )
     return rows
@@ -215,6 +231,10 @@ def _runtime_context_summary_rows(results: List[Dict[str, Any]], runtimes: List[
             retrieval_exact_rate = _avg(
                 [1.0 if bool(r.get("retrieval_exact", False)) else 0.0 for r in retrieval_rows]
             )
+            retrieval_exact_ci95_half_width = _ci95_half_width_for_rate(
+                retrieval_exact_rate,
+                len(retrieval_rows),
+            )
             rows.append(
                 {
                     "runtime": runtime,
@@ -232,6 +252,7 @@ def _runtime_context_summary_rows(results: List[Dict[str, Any]], runtimes: List[
                     "avg_memory_gb": round(_avg([float(r.get("memory_gb", 0.0) or 0.0) for r in group]), 3),
                     "avg_retrieval_score_float": round(_avg(retrieval_scores), 3),
                     "retrieval_exact_rate": round(retrieval_exact_rate, 3),
+                    "retrieval_exact_ci95_half_width": round(retrieval_exact_ci95_half_width, 3),
                 }
             )
     return rows
@@ -279,6 +300,7 @@ def _write_summary_reports(
         "dataset_file": str(args.dataset_file),
         "prompt_mode": bool(args.prompt),
         "skip_warmup": bool(args.skip_warmup),
+        "use_prompt_cache": bool(getattr(args, "use_prompt_cache", False)),
     }
 
     summary_json = {
@@ -332,6 +354,7 @@ def _write_summary_reports(
         "dataset_file",
         "prompt_mode",
         "skip_warmup",
+        "use_prompt_cache",
     ):
         lines.append(f"- `{key}`: `{params[key]}`")
     lines.append("")
@@ -350,39 +373,39 @@ def _write_summary_reports(
     lines.append("## Runtime Summary")
     lines.append("")
     lines.append(
-        "| Runtime | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate |"
+        "| Runtime | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |"
     )
-    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in runtime_rows:
         lines.append(
             f"| {row['runtime']} | {row['count']} | {row['avg_total_time']:.3f} | "
             f"{row['avg_tokens_per_second']:.3f} | {row['avg_prompt_tps']:.3f} | "
             f"{row['avg_generation_tps']:.3f} | {row['avg_ttft_sec']:.3f} | "
             f"{row['avg_memory_gb']:.3f} | {row['avg_retrieval_score_float']:.3f} | "
-            f"{row['retrieval_exact_rate']:.3f} |"
+            f"{row['retrieval_exact_rate']:.3f} | {row['retrieval_exact_ci95_half_width']:.3f} |"
         )
     lines.append("")
     lines.append("## Runtime + Context Summary")
     lines.append("")
     lines.append(
-        "| Runtime | Context | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate |"
+        "| Runtime | Context | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |"
     )
-    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in runtime_context_rows:
         lines.append(
             f"| {row['runtime']} | {row['context']} | {row['count']} | {row['avg_total_time']:.3f} | "
             f"{row['avg_tokens_per_second']:.3f} | {row['avg_prompt_tps']:.3f} | "
             f"{row['avg_generation_tps']:.3f} | {row['avg_ttft_sec']:.3f} | "
             f"{row['avg_memory_gb']:.3f} | {row['avg_retrieval_score_float']:.3f} | "
-            f"{row['retrieval_exact_rate']:.3f} |"
+            f"{row['retrieval_exact_rate']:.3f} | {row['retrieval_exact_ci95_half_width']:.3f} |"
         )
     lines.append("")
     lines.append("## Run Results")
     lines.append("")
     lines.append(
-        "| Runtime | Model | Case | Context | Time (s) | Tok/s | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) | Retrieval score | Retrieval exact | Status |"
+        "| Runtime | Model | Case | Context | Time (s) | Tok/s | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) | Retrieval score | Retrieval exact | Prompt cache | Status |"
     )
-    lines.append("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|")
+    lines.append("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|")
     for row in results_sorted:
         context_tokens = row.get("context_tokens_target")
         default_context_k = _default_context_k_for_runtime(str(row.get("runtime", "")))
@@ -401,7 +424,8 @@ def _write_summary_reports(
             f"{float(row.get('ttft_sec', 0.0) or 0.0):.2f} | "
             f"{float(row.get('memory_gb', 0.0) or 0.0):.2f} | "
             f"{float(row.get('retrieval_score_float', 0.0) or 0.0):.3f} | "
-            f"{bool(row.get('retrieval_exact', False))} | {status} |"
+            f"{bool(row.get('retrieval_exact', False))} | "
+            f"{bool(row.get('used_prompt_cache', False))} | {status} |"
         )
 
     summary_md_path = experiment_dir / "summary.md"
@@ -423,18 +447,25 @@ def run_benchmark(args: Any) -> int:
     results: List[Dict[str, Any]] = []
     experiment_dir = ROOT_DIR / "data" / "benchmark" / _experiment_group(args) / _timestamp_slug()
     experiment_dir.mkdir(parents=True, exist_ok=True)
+    use_prompt_cache = bool(getattr(args, "use_prompt_cache", False))
 
     print("Managed mode: MLX servers run sequentially (never together) to avoid OOM.", file=sys.stderr)
     print(f"Artifacts directory: {experiment_dir}", file=sys.stderr)
 
     for runtime in runtimes:
         config = CONFIGS[runtime]
+        if use_prompt_cache and runtime not in {"mlx", "mlx-optiq"}:
+            print(
+                f"Warning: --use-prompt-cache is not supported for runtime '{runtime}', using normal prompts.",
+                file=sys.stderr,
+            )
         models = select_models(config, args.model, args.all_models)
 
         for model in models:
             managed_proc: Optional[Any] = None
             memory_pid: Optional[int] = None
             default_context_k = _default_context_k_for_runtime(runtime)
+            model_cache_ids: set[str] = set()
 
             try:
                 if config["managed_server"]:
@@ -467,20 +498,61 @@ def run_benchmark(args: Any) -> int:
                         case,
                         default_context_k=default_context_k,
                     )
+                    prompt_text = case["prompt"]
+                    extra_payload: Optional[Dict[str, Any]] = None
+                    if use_prompt_cache and runtime in {"mlx", "mlx-optiq"}:
+                        prompt_prefix = case.get("prompt_prefix")
+                        prompt_suffix = case.get("prompt_suffix")
+                        prompt_cache_group = case.get("prompt_cache_group")
+                        prefill_url = str(config.get("cache_prefill_url", "") or "")
+                        if (
+                            isinstance(prompt_prefix, str)
+                            and isinstance(prompt_suffix, str)
+                            and isinstance(prompt_cache_group, str)
+                            and prefill_url
+                        ):
+                            cache_id = _slug(
+                                f"{runtime}-{_model_label(model, runtime)}-{prompt_cache_group}"
+                            )
+                            if cache_id not in model_cache_ids:
+                                prefill_result = prefill_prompt_cache(
+                                    prefill_url=prefill_url,
+                                    cache_id=cache_id,
+                                    prompt_prefix=prompt_prefix,
+                                    request_timeout_sec=args.request_timeout,
+                                )
+                                if not prefill_result.get("success"):
+                                    print(
+                                        f"  ! Cache prefill failed for {cache_id}: "
+                                        f"{prefill_result.get('error', 'unknown')}. "
+                                        "Falling back to full prompt.",
+                                        file=sys.stderr,
+                                    )
+                                else:
+                                    model_cache_ids.add(cache_id)
+                            if cache_id in model_cache_ids:
+                                prompt_text = prompt_suffix
+                                extra_payload = {
+                                    "raw_prompt": prompt_suffix,
+                                    "cache_id": cache_id,
+                                }
+
                     result = benchmark_model(
                         chat_url=config["chat_url"],
                         model=model,
-                        prompt=case["prompt"],
+                        prompt=prompt_text,
                         max_tokens=case["max_tokens"],
                         runtime=runtime,
                         memory_pid=memory_pid,
                         memory_pattern=config.get("process_hint"),
                         request_timeout_sec=args.request_timeout,
                         artifact_dir=run_dir,
+                        extra_payload=extra_payload,
                     )
                     case_meta: Dict[str, Any] = {
                         "dataset": case.get("dataset"),
                         "case_name": case.get("case_name"),
+                        "used_prompt_cache": bool(extra_payload and extra_payload.get("cache_id")),
                     }
                     for key in (
                         "context_tokens_target",
@@ -488,6 +560,7 @@ def run_benchmark(args: Any) -> int:
                         "needle_key",
                         "needle_value",
                         "needle_position",
+                        "prompt_cache_group",
                     ):
                         value = case.get(key)
                         if value is not None:
@@ -518,6 +591,20 @@ def run_benchmark(args: Any) -> int:
                     else:
                         print(f"  ✗ {result.get('error', 'Unknown error')}", file=sys.stderr)
             finally:
+                if runtime in {"mlx", "mlx-optiq"} and model_cache_ids:
+                    clear_url = str(config.get("cache_clear_url", "") or "")
+                    if clear_url:
+                        for cache_id in sorted(model_cache_ids):
+                            clear_result = clear_prompt_cache(
+                                clear_url=clear_url,
+                                cache_id=cache_id,
+                            )
+                            if not clear_result.get("success"):
+                                print(
+                                    f"  ! Cache clear failed for {cache_id}: "
+                                    f"{clear_result.get('error', 'unknown')}",
+                                    file=sys.stderr,
+                                )
                 if managed_proc is not None:
                     stop_managed_process(managed_proc)
                 if config["managed_server"]:
@@ -564,9 +651,10 @@ def run_benchmark(args: Any) -> int:
             retrieval_rows = [r for r in runtime_results if isinstance(r.get("retrieval_score_float"), (float, int))]
             avg_retrieval = _avg([float(r.get("retrieval_score_float", 0.0) or 0.0) for r in retrieval_rows])
             exact_rate = _avg([1.0 if bool(r.get("retrieval_exact", False)) else 0.0 for r in retrieval_rows])
+            exact_ci95 = _ci95_half_width_for_rate(exact_rate, len(retrieval_rows))
             print(
                 f"  {runtime}: avg {avg_speed:.2f} tok/s, avg {avg_time:.2f}s, "
-                f"retrieval {avg_retrieval:.3f}, exact {exact_rate:.3f}",
+                f"retrieval {avg_retrieval:.3f}, exact {exact_rate:.3f} +/- {exact_ci95:.3f}",
                 file=sys.stderr,
             )
 

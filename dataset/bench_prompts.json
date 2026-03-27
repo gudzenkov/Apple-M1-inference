@@ -1,9 +1,9 @@
 {
   "short_source": "Local inference benchmarking focuses on latency, throughput, memory, context handling, and response stability across repeated samples. Use deterministic prompts and consistent runtime configuration for fair comparisons.",
   "short_intro": "The text below contains one hidden retrieval record (needle) inside background text (haystack).",
-  "short_query": "Return only the needle value.",
+  "short_query": "Return only the value for key {needle_key}.",
   "long_intro": "The long context below contains one hidden retrieval record (needle) embedded in the haystack text.",
-  "long_query": "Return only the needle value.",
+  "long_query": "Return only the value for key {needle_key}.",
   "needle_template": "Needle record: key={needle_key}; value={needle_value}.",
   "answer_format": "Output format: the exact needle value only, no extra words."
 }

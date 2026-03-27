@@ -42,7 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--samples",
         type=int,
         default=5,
-        help="Samples per selected dataset profile (default: 5)",
+        help=(
+            "Samples per selected dataset profile (default: 5, minimum: 3). "
+            "For long mode this is also the number of retrieval needles/queries per context."
+        ),
     )
     parser.add_argument(
         "--dataset-file",
@@ -79,6 +82,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-warmup",
         action="store_true",
         help="Skip warmup request",
+    )
+    parser.add_argument(
+        "--use-prompt-cache",
+        action="store_true",
+        help=(
+            "Use server-side prompt cache for long-mode cases by pre-filling shared context "
+            "once and querying suffix prompts against that cached prefix."
+        ),
     )
     parser.add_argument(
         "--server-start-timeout",

@@ -150,6 +150,34 @@ curl http://localhost:8080/v1/chat/completions \
   }'
 ```
 
+### Prompt cache endpoints
+Use these when benchmarking repeated long-context retrieval prompts against one shared prefix.
+
+```bash
+# Prefill prefix cache (standard server example)
+curl http://localhost:8000/v1/cache/prefill \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cache_id": "bench-long-64k",
+    "raw_prompt": "Long shared context prefix text..."
+  }'
+
+# Reuse cache in chat request
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "mlx-community/Qwen3.5-9B-OptiQ-4bit",
+    "cache_id": "bench-long-64k",
+    "raw_prompt": "Question: Return only the value for key long-needle-64k-s1",
+    "max_tokens": 64
+  }'
+
+# Clear cache
+curl http://localhost:8000/v1/cache/clear \
+  -H "Content-Type: application/json" \
+  -d '{"cache_id":"bench-long-64k"}'
+```
+
 ## Context Settings
 
 ### 1) Model-side

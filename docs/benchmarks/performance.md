@@ -118,6 +118,15 @@ uv run benchmark --dataset long --runtime both --samples 3
 # Run long dataset context sweep
 uv run benchmark --dataset long --context 8,64 --runtime both --samples 3
 
+# Run long 64k with 20 needles/samples and prompt caching
+uv run benchmark \
+  --dataset long \
+  --context 64 \
+  --runtime both \
+  --samples 20 \
+  --use-prompt-cache \
+  --output benchmark_long_64k_s20_cache.jsonl
+
 # Run all datasets (short + long)
 uv run benchmark --dataset all --runtime both --samples 3
 
@@ -146,8 +155,13 @@ Each JSONL line includes:
 - `retrieval_predicted`
 - `retrieval_score_float`
 - `retrieval_exact`
+- `used_prompt_cache`
 - `payload_path`
 - `response_path`
+
+Summary reports also include:
+- runtime-level and runtime+context averages for retrieval score and exact rate
+- `retrieval_exact_ci95_half_width` (95% CI half-width for exact-match rate)
 
 Memory metrics:
 - `memory_gb`: canonical peak RAM field used by benchmark output.
@@ -179,6 +193,7 @@ Artifact layout:
   "retrieval_predicted": "NIAH-LONG-64K-S01-001234",
   "retrieval_score_float": 1.0,
   "retrieval_exact": true,
+  "used_prompt_cache": true,
   "payload_path": "data/benchmark/mlx-paper-s3-mt100/20260327T161403Z/mlx-optiq-qwen3.5-9b-optiq-q4-64k-s1/payload.json",
   "response_path": "data/benchmark/mlx-paper-s3-mt100/20260327T161403Z/mlx-optiq-qwen3.5-9b-optiq-q4-64k-s1/response.json"
 }
