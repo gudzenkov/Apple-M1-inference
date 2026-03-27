@@ -37,7 +37,10 @@ export HUGGINGFACE_MODEL=mlx-community/Qwen3.5-9B-OptiQ-4bit
 export HOST=0.0.0.0
 ```
 
-Model card: [mlx-community/Qwen3.5-9B-OptiQ-4bit](https://huggingface.co/mlx-community/Qwen3.5-9B-OptiQ-4bit)
+`HUGGINGFACE_MODEL` accepts a configured alias or full model ID from `configs/models.yaml`.
+Common aliases: `optiq`, `opus`, `claw`, `coder`.
+
+Model card (default alias `optiq`): [mlx-community/Qwen3.5-9B-OptiQ-4bit](https://huggingface.co/mlx-community/Qwen3.5-9B-OptiQ-4bit)
 
 ## Basic Usage
 
@@ -114,7 +117,7 @@ uv run mlx-openai-optiq-server status
 ### Server checks
 ```bash
 # Process checks
-ps aux | grep -E "mlx-openai-server|mlx-openai-optiq-server.py" | grep -v grep
+ps aux | grep -E "mlx-openai-server|mlx-openai-optiq-server" | grep -v grep
 
 # Health checks
 curl -s http://localhost:8000/v1/models

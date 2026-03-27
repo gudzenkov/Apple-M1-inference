@@ -17,9 +17,9 @@ OptiQ models can leverage `mlx-optiq` to compress the KV cache to roughly 1/5 of
 
 - Install requirements:
   ```bash
-  uv pip install "mlx-lm>=0.30.7" mlx-optiq
+  uv sync
   ```
-- Use the custom FastAPI server in `src/mlx-openai-optiq-server` to initialize the cache with `TurboQuantKVCache` per attention layer.
+- Use `uv run mlx-openai-optiq-server` to initialize `TurboQuantKVCache` per attention layer.
 - When you need the TurboQuant benefits, prefer the `/v1/chat/completions` endpoint on port 8080 (the Optiq server) and let the server manage `seed+bits` per layer.
 - MLX inference here requires native macOS runtime access.
 
@@ -31,7 +31,7 @@ OptiQ models can leverage `mlx-optiq` to compress the KV cache to roughly 1/5 of
 - Good for workloads that simply need OpenAI-compatible chat completions without TurboQuant caching.
 
 ### TurboQuant-aware Optiq server (`mlx-openai-optiq-server`)
-- Local Python script starts an endpoint on port 8080 that keeps 256K context in RAM while applying the TurboQuant cache.
+- `uv run mlx-openai-optiq-server serve` starts an endpoint on port 8080 that keeps 256K context in RAM while applying the TurboQuant cache.
 - Every request reuses the same quantized cache object, so warm-up is fast after the first prompt and memory stays closer to the 9B footprint.
 - The endpoint mirrors `/v1/chat/completions` and `/v1/models`, so any OpenAI client works.
 

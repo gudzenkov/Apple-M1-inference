@@ -22,13 +22,19 @@ Add this provider block to `~/.config/opencode/opencode.json` if you want an exp
   "provider": {
     "mlx-local": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "MLX Local (Qwen3.5-27B)",
+      "name": "MLX Local",
       "options": {
         "baseURL": "http://localhost:8000/v1"
       },
       "models": {
         "mlx-community/Qwen3.5-9B-OptiQ-4bit": {
           "name": "Qwen3.5-9B-OptiQ-4bit"
+        },
+        "mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit": {
+          "name": "Qwen3.5-27B Opus Distilled"
+        },
+        "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit": {
+          "name": "Qwen3-Coder-30B-A3B"
         }
       }
     }
@@ -39,14 +45,14 @@ Add this provider block to `~/.config/opencode/opencode.json` if you want an exp
 ### Usage
 1. Start the MLX server (see [MLX OpenAI-Compatible Servers](../servers/MLX.md#openai-compatible-servers)).
 2. Restart OpenCode.
-3. Select "MLX Local (Qwen3.5-27B)" from the model dropdown.
+3. Select "MLX Local" from the model dropdown.
 4. Start coding with local AI assistance.
 
 ## Provider highlights
 
 ### MLX Local
 - **Base URL:** `http://localhost:8000/v1` (or `http://localhost:8080/v1` when running the TurboQuant Optiq server).
-- **Models:** `mlx-community/Qwen3.5-9B-OptiQ-4bit` and `mlx-community/Qwen3.5-27B-4bit`.
+- **Models:** Keep this list aligned with `configs/models.yaml` for `runtime: mlx`.
 - **Notes:** The config marks the provider with the OpenAI-compatible SDK so OpenCode can show both models alongside Ollama.
 
 ### Ollama Local
@@ -58,7 +64,7 @@ Add this provider block to `~/.config/opencode/opencode.json` if you want an exp
 
 1. Make sure the relevant server is running (`mlx-openai-server`, `mlx-openai-optiq-server`, or Ollama service).
 2. Run `curl http://<server>/v1/models` to confirm the endpoint responds.
-3. Open OpenCode and verify the provider dropdown now lists “MLX Local (Qwen3.5-27B)” and “Ollama Local”.
+3. Open OpenCode and verify the provider dropdown now lists “MLX Local” and “Ollama Local”.
 
 ## Tips
 

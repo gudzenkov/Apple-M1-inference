@@ -17,7 +17,7 @@ The file is already configured for the Optiq server (`http://127.0.0.1:8080/v1`)
    - **Name:** `MLX Optiq` or similar.
    - **Base URL:** `http://127.0.0.1:8080/v1` for TurboQuant or `http://127.0.0.1:8000/v1` for the standard MLX service.
    - **API Key:** `local` (any string works as long as it matches your `.qwen` config).
-   - **Model ID:** `mlx-community/Qwen3.5-9B-OptiQ-4bit` or `mlx-community/Qwen3.5-27B-4bit`.
+   - **Model ID:** Use the exact ID returned by `curl http://127.0.0.1:<port>/v1/models` (for example `mlx-community/Qwen3.5-9B-OptiQ-4bit`).
 3. Restart QwenCode after changing providers to apply the new endpoint.
 
 ## Switching servers
