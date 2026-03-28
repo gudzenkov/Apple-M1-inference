@@ -9,7 +9,21 @@ It now uses 2 dataset modes:
 - `short` (fixed `8k`, needle-in-haystack retrieval)
 - `long` (variable context via `--context`, default `256k`, needle-in-haystack retrieval)
 
-## Measurements
+## Recall
+
+64k needle-in-haystack run (`samples=20`, `use_prompt_cache=true`, date `2026-03-28`):
+
+| Runtime | Model | Context | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| mlx | Qwen3.5-9B-4bit | 64k | 78.683 | 25.722 | 0.868 | 12.94 | 0.967 | 0.800 | 0.175 |
+| mlx-optiq | Qwen3.5-9B-OptiQ-4bit | 64k | 93.727 | 26.167 | 0.689 | 15.35 | 1.000 | 1.000 | 0.000 |
+| delta | - | - | +19.12% | +1.73% | -20.62% | +18.62% | +3.41% | +25.00% | - |
+
+Source summaries:
+- `results/mlx-turboquant-s20-mt100-pc1/20260328T110231Z/mlx-qwen3.5-9b-q4-64k-s20.md`
+- `results/mlx-optiq-turboquant-s20-mt100-pc1/20260328T111033Z/mlx-optiq-qwen3.5-9b-optiq-q4-64k-s20.md`
+
+## Performance
 
 | Runtime | Context | Prompt tokens | Completion tokens | Total time (s) | E2E tok/s | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -43,11 +57,13 @@ just bench
 uv run benchmark --dataset all
 ```
 
-Results are written to `results/benchmark_<dataset>.jsonl` by default.
+Results are written under:
+- `results/<experiment-group>/<utc-timestamp>/benchmark_<model>_<context>_s<samples>.jsonl`
+
 Each run also creates:
-- `data/<experiment_name_with_global_params_timestamp>/summary.json`
-- `data/<experiment_name_with_global_params_timestamp>/summary.md`
-- `data/<experiment_name_with_global_params_timestamp>/<run_param>/{payload,response}.json`
+- `data/benchmark/<experiment-group>/<utc-timestamp>/<run_param>/{payload,response}.json`
+- `results/<experiment-group>/<utc-timestamp>/<run_param>.json`
+- `results/<experiment-group>/<utc-timestamp>/<run_param>.md`
 
 The long-context dataset reads from `dataset/turboquant_2504_19874v1.md`.
 If missing, build it once:
