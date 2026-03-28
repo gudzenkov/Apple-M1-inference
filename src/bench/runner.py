@@ -651,23 +651,11 @@ def run_benchmark(args: Any) -> int:
         runtimes=runtimes,
         output_path=output_path,
         artifact_dir=experiment_dir,
-        summary_dir=experiment_dir,
+        summary_dir=results_dir,
         summary_stem=summary_stem,
     )
     print(f"✅ Summary JSON: {_display_path(summary_json_path)}", file=sys.stderr)
     print(f"✅ Summary MD: {_display_path(summary_md_path)}", file=sys.stderr)
-
-    results_summary_json_path, results_summary_md_path = _write_summary_reports(
-        args=args,
-        results=results,
-        runtimes=runtimes,
-        output_path=output_path,
-        artifact_dir=experiment_dir,
-        summary_dir=results_dir,
-        summary_stem=summary_stem,
-    )
-    print(f"✅ Results Summary JSON: {_display_path(results_summary_json_path)}", file=sys.stderr)
-    print(f"✅ Results Summary MD: {_display_path(results_summary_md_path)}", file=sys.stderr)
 
     successful = [r for r in results if r.get("success")]
     if successful:
