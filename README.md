@@ -14,6 +14,7 @@ Local-first guides for running large language models on Apple Silicon, with sepa
 ### Inference Server Guides
 - 📘 [`docs/servers/MLX.md`](docs/servers/MLX.md) – MLX setup, server workflows, and troubleshooting.
 - 📗 [`docs/servers/ollama.md`](docs/servers/ollama.md) – Ollama installation, model management, and API notes.
+- 📙 [`docs/servers/devcontainer.md`](docs/servers/devcontainer.md) – Run Qwen on macOS host and connect it from Orb/Docker Desktop devcontainers.
 
 ### Usage Guides
 - 🔧 [`docs/models/Qwen.md`](docs/models/Qwen.md) – Qwen model lineup, TurboQuant cache, and inference presets.
