@@ -4,7 +4,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 SHORT_CONTEXT_TOKENS = 8000
 LONG_DEFAULT_CONTEXT_TOKENS = 256000
@@ -145,6 +145,53 @@ def _render_query(template: str, needle_key: str) -> str:
         )
 
 
+@lru_cache(maxsize=8)
+def _load_hf_tokenizer(model_id: str) -> Any:
+    from transformers import AutoTokenizer
+    return AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+
+
+def _token_count_for_prompt(tokenizer: Any, prompt: str) -> int:
+    add_special_tokens = tokenizer.bos_token is None or not prompt.startswith(tokenizer.bos_token)
+    token_ids = tokenizer.encode(prompt, add_special_tokens=add_special_tokens)
+    return int(len(token_ids))
+
+
+def _build_long_context_payload(
+    source_words: List[str],
+    prompts: Dict[str, str],
+    context_k: int,
+    samples: int,
+    payload_words_target: int,
+) -> tuple[List[str], List[Dict[str, Any]]]:
+    shared_payload_words = _build_payload(
+        source_words,
+        target_words=payload_words_target,
+        offset=(context_k * 37),
+    )
+    context_needles: List[Dict[str, Any]] = []
+    for idx in range(samples):
+        sample_index = idx + 1
+        needle = _needle_fields(mode="long", context_k=context_k, sample_index=sample_index)
+        needle_text = _render_needle(prompts, needle["needle_key"], needle["needle_value"])
+        # Spread needles across the payload to avoid end-clamp collisions at small contexts.
+        max_pos = max(0, len(shared_payload_words) - len(needle_text.split()))
+        target_position = int((sample_index * max_pos) / (samples + 1)) if samples > 0 else 0
+        shared_payload_words, needle_position = _embed_needle(
+            payload_words=shared_payload_words,
+            needle_text=needle_text,
+            position=target_position,
+        )
+        context_needles.append(
+            {
+                **needle,
+                "sample_index": sample_index,
+                "needle_position": needle_position,
+            }
+        )
+    return shared_payload_words, context_needles
+
+
 def build_short_cases(samples: int) -> List[Dict[str, Any]]:
     prompts = _load_bench_prompts()
     target_words = max(1, int(SHORT_CONTEXT_TOKENS * CONTEXT_FILL_RATIO))
@@ -191,6 +238,7 @@ def build_long_cases(
     samples: int,
     dataset_file: Path,
     contexts_k: List[int] | None = None,
+    tokenizer_model_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     if not dataset_file.exists():
         raise RuntimeError(
@@ -205,34 +253,57 @@ def build_long_cases(
 
     resolved_contexts = contexts_k or [int(LONG_DEFAULT_CONTEXT_TOKENS / 1000)]
     cases: List[Dict[str, Any]] = []
+    tokenizer = _load_hf_tokenizer(tokenizer_model_id) if tokenizer_model_id else None
     for context_k in resolved_contexts:
         context_tokens = context_k * 1000
         target_words = max(1, int(context_tokens * CONTEXT_FILL_RATIO))
-        shared_payload_words = _build_payload(
-            source_words,
-            target_words=target_words,
-            offset=(context_k * 37),
-        )
+        min_words = max(1, samples * 16)
+        payload_words_target = target_words
         context_needles: List[Dict[str, Any]] = []
-        for idx in range(samples):
-            sample_index = idx + 1
-            needle = _needle_fields(mode="long", context_k=context_k, sample_index=sample_index)
-            needle_text = _render_needle(prompts, needle["needle_key"], needle["needle_value"])
-            # Spread needles across the payload to avoid end-clamp collisions at small contexts.
-            max_pos = max(0, len(shared_payload_words) - len(needle_text.split()))
-            target_position = int((sample_index * max_pos) / (samples + 1)) if samples > 0 else 0
-            shared_payload_words, needle_position = _embed_needle(
-                payload_words=shared_payload_words,
-                needle_text=needle_text,
-                position=target_position,
-            )
-            context_needles.append(
-                {
-                    **needle,
-                    "sample_index": sample_index,
-                    "needle_position": needle_position,
-                }
-            )
+        shared_payload_words: List[str] = []
+
+        if tokenizer is not None:
+            low = min_words
+            high = target_words
+            best_words = min_words
+
+            while low <= high:
+                candidate_words = (low + high) // 2
+                candidate_payload, candidate_needles = _build_long_context_payload(
+                    source_words=source_words,
+                    prompts=prompts,
+                    context_k=context_k,
+                    samples=samples,
+                    payload_words_target=candidate_words,
+                )
+                candidate_prefix = (
+                    f"[long-{context_k}k shared-context needles {samples}] "
+                    f"{prompts['long_intro']}\n\n"
+                    f"{' '.join(candidate_payload)}\n\n"
+                )
+                probe_key = str(candidate_needles[0]["needle_key"]) if candidate_needles else f"long-needle-{context_k}k-s1"
+                probe_query = _render_query(prompts["long_query"], probe_key)
+                probe_suffix = (
+                    f"Question: {probe_query}\n"
+                    f"{prompts['answer_format']}"
+                )
+                prompt_tokens = _token_count_for_prompt(tokenizer, f"{candidate_prefix}{probe_suffix}")
+
+                if prompt_tokens <= context_tokens:
+                    best_words = candidate_words
+                    low = candidate_words + 1
+                else:
+                    high = candidate_words - 1
+
+            payload_words_target = max(min_words, min(best_words, target_words))
+
+        shared_payload_words, context_needles = _build_long_context_payload(
+            source_words=source_words,
+            prompts=prompts,
+            context_k=context_k,
+            samples=samples,
+            payload_words_target=payload_words_target,
+        )
 
         shared_payload = " ".join(shared_payload_words)
         prompt_prefix = (
@@ -278,6 +349,7 @@ def build_cases(
     prompt: str | None,
     prompt_max_tokens: int,
     contexts_k: List[int] | None = None,
+    tokenizer_model_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     if prompt:
         return [
@@ -297,7 +369,14 @@ def build_cases(
     if dataset_mode in ("short", "all"):
         cases.extend(build_short_cases(samples=samples))
     if dataset_mode in ("long", "all"):
-        cases.extend(build_long_cases(samples=samples, dataset_file=dataset_file, contexts_k=contexts_k))
+        cases.extend(
+            build_long_cases(
+                samples=samples,
+                dataset_file=dataset_file,
+                contexts_k=contexts_k,
+                tokenizer_model_id=tokenizer_model_id,
+            )
+        )
 
     if not cases:
         raise RuntimeError(f"Unsupported dataset mode: {dataset_mode}")

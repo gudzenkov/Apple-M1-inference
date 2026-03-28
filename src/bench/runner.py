@@ -444,14 +444,6 @@ def _write_summary_reports(
 
 def run_benchmark(args: Any) -> int:
     runtimes = resolve_runtimes(args.runtime)
-    cases = build_cases(
-        dataset=args.dataset,
-        samples=args.samples,
-        dataset_file=Path(args.dataset_file),
-        prompt=args.prompt,
-        prompt_max_tokens=args.max_tokens,
-        contexts_k=getattr(args, "contexts_k", None),
-    )
 
     results: List[Dict[str, Any]] = []
     experiment_group = _experiment_group(args)
@@ -479,6 +471,15 @@ def run_benchmark(args: Any) -> int:
         models = select_models(config, args.model, args.all_models)
 
         for model in models:
+            cases = build_cases(
+                dataset=args.dataset,
+                samples=args.samples,
+                dataset_file=Path(args.dataset_file),
+                prompt=args.prompt,
+                prompt_max_tokens=args.max_tokens,
+                contexts_k=getattr(args, "contexts_k", None),
+                tokenizer_model_id=model,
+            )
             managed_proc: Optional[Any] = None
             memory_pid: Optional[int] = None
             default_context_k = _default_context_k_for_runtime(runtime)
