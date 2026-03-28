@@ -7,6 +7,13 @@ models:
       aliases:
         - optiq
         - optiq-9b
+  - qwen3.5-9b-q4:
+      model: mlx-community/Qwen3.5-9B-4bit
+      runtime: mlx
+      size: 9
+      quant: 4
+      aliases:
+        - qwen9b
   - qwen3.5-27b-opus-q4:
       model: mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit
       runtime: mlx
