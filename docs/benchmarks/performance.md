@@ -77,8 +77,8 @@ Experiment date: `2026-03-27`
 
 Setup:
 - Hardware: M1 Mac (`64GB` LPDDR5 unified memory, `24` GPU cores)
-- Runtime: `both` (sequential: `mlx` then `mlx-optiq`)
-- Model: alias `optiq` (`mlx-community/Qwen3.5-9B-OptiQ-4bit`)
+- Runtime: `mlx` and `mlx-optiq` (run as separate commands)
+- Model: alias `mlx-optiq-9b` (`mlx-community/Qwen3.5-9B-OptiQ-4bit`)
 - Dataset source: `dataset/turboquant_2504_19874v1.md`
 - Prompt payload: needle-in-haystack retrieval prompt
 - Contexts: `8k,16k,32k,64k`
@@ -88,26 +88,25 @@ Setup:
 Command:
 ```bash
 uv run benchmark \
-  --runtime both \
-  --model optiq \
+  --runtime mlx \
+  --model mlx-optiq-9b \
   --dataset long \
   --context 8,16,32,64 \
   --samples 3 \
-  --output benchmark_context_8_16_32_64_both.jsonl
+  --output benchmark_context_8_16_32_64_mlx.jsonl
 ```
 
 Raw results:
-- `results/benchmark_context_8_16_32_64_both.jsonl`
+- `results/benchmark_context_8_16_32_64_mlx.jsonl`
 
 ## Runtime modes
 
+- `--runtime auto` (default): resolve runtime from `--model` using `configs/models.yaml`.
 - `--runtime mlx`: benchmark only `mlx-openai-server` on `:8000`.
 - `--runtime mlx-optiq`: benchmark only `mlx-openai-optiq-server` on `:8080`.
-- `--runtime both`: benchmark both MLX servers sequentially.
 - `--runtime ollama`: benchmark external Ollama server on `:11434` (optional).
-- `--runtime all`: benchmark MLX, MLX-Optiq, and Ollama.
 
-For managed MLX runs (`mlx`, `mlx-optiq`, `both`, `all`), the script:
+For managed MLX runs (`mlx`, `mlx-optiq`), the script:
 1. Stops existing MLX server processes on ports `8000` and `8080`.
 2. Starts the selected server with the selected model.
 3. Runs benchmark prompts.
@@ -116,39 +115,44 @@ For managed MLX runs (`mlx`, `mlx-optiq`, `both`, `all`), the script:
 ## Usage examples
 
 ```bash
+# Default runtime from model config (recommended)
+uv run benchmark --model mlx-qwen-9b
+uv run benchmark --model qwen3.5:9b
+
 # MLX only
-uv run benchmark --runtime mlx --model mlx-community/Qwen3.5-9B-OptiQ-4bit
+uv run benchmark --runtime mlx --model mlx-qwen-9b
 
 # MLX-Optiq only
-uv run benchmark --runtime mlx-optiq --model mlx-community/Qwen3.5-9B-OptiQ-4bit
+uv run benchmark --runtime mlx-optiq --model mlx-optiq-9b
 
-# Compare both servers on all configured prompts
-uv run benchmark --runtime both --model mlx-community/Qwen3.5-9B-OptiQ-4bit
+# Compare both servers with explicit separate runs
+uv run benchmark --runtime mlx --model mlx-qwen-9b
+uv run benchmark --runtime mlx-optiq --model mlx-optiq-9b
 
 # Run short dataset only (8k)
-uv run benchmark --dataset short --runtime both --samples 3
+uv run benchmark --dataset short --runtime mlx --samples 3
 
 # Run long dataset only (default 64k)
-uv run benchmark --dataset long --runtime both --samples 3
+uv run benchmark --dataset long --runtime mlx --samples 3
 
 # Run long dataset context sweep
-uv run benchmark --dataset long --context 8,64 --runtime both --samples 3
+uv run benchmark --dataset long --context 8,64 --runtime mlx --samples 3
 
 # Run long 64k with 20 needles/samples and prompt caching
 uv run benchmark \
   --dataset long \
   --context 64 \
-  --runtime both \
+  --runtime mlx \
   --samples 20 \
   --use-prompt-cache \
   --output benchmark_long_64k_s20_cache.jsonl
 
 # Run all datasets (short + long)
-uv run benchmark --dataset all --runtime both --samples 3
+uv run benchmark --dataset all --runtime mlx --samples 3
 
 # Custom prompt and output file (stored under results/)
 uv run benchmark \
-  --runtime both \
+  --runtime mlx \
   --prompt "Explain Rust ownership in one paragraph." \
   --max-tokens 200 \
   --output benchmark_mlx_vs_optiq_qwen9b.jsonl
@@ -219,15 +223,15 @@ Artifact layout:
 
 ```bash
 # Inspect context sweep results
-jq '.' results/benchmark_context_8_16_32_64_both.jsonl
+jq '.' results/benchmark_context_8_16_32_64_mlx.jsonl
 
 # Average throughput by runtime
 jq -s 'group_by(.runtime) | map({runtime: .[0].runtime, avg_tps: (map(.tokens_per_second) | add / length)})' \
-  results/benchmark_context_8_16_32_64_both.jsonl
+  results/benchmark_context_8_16_32_64_mlx.jsonl
 
 # Average peak RAM by runtime
 jq -s 'group_by(.runtime) | map({runtime: .[0].runtime, avg_peak_ram_gb: (map(.memory_gb // 0) | add / length)})' \
-  results/benchmark_context_8_16_32_64_both.jsonl
+  results/benchmark_context_8_16_32_64_mlx.jsonl
 ```
 
 ## Resources

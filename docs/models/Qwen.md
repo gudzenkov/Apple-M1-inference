@@ -9,7 +9,7 @@
 | mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit | 27B | 4-bit | `mlx-openai-server` | ~20–25 GB + 20–25 GB context |
 | mlx-community/Qwen3.5-35B-A3B-4bit | 35B (A3B) | 4-bit | `mlx-openai-server` | ~22–28 GB + 24–30 GB context |
 | flovflo/turboquant-mlx-qwen35-kv | 35B (A3B) | 4-bit + TurboQuant KV cache | `tqkv-openai-server` | ~22–28 GB + ~4–6 GB compressed KV context |
-| lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-MLX-4bit | 30B | 4-bit | `mlx-openai-server` | ~22–28 GB + 20–25 GB context |
+| mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | 30B | 4-bit | `mlx-openai-server` | ~22–28 GB + 20–25 GB context |
 | hertz-hwang/Qwen3.5-27B-OpenClaw-mlx-6.5bit | 27B | 6.5-bit | `mlx-openai-server` | ~30+ GB + 20–25 GB context |
 
 All models support 262144 tokens (256K) when the server (MLX or Optiq) is started with the matching context length.
