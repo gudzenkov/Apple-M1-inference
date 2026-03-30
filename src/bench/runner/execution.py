@@ -52,6 +52,33 @@ def _cache_prime_key(case: Dict[str, Any]) -> str:
     return f"{dataset}:{context_part}"
 
 
+def _build_prime_case(case: Dict[str, Any]) -> Dict[str, Any]:
+    prime_case = dict(case)
+    prime_case["case_name"] = _prime_case_name(str(case.get("case_name") or "cache-prime"))
+    prime_case["phase"] = "cache-prime"
+    try:
+        prime_case["max_tokens"] = min(int(case.get("max_tokens", 16)), 8)
+    except Exception:  # noqa: BLE001
+        prime_case["max_tokens"] = 8
+
+    prompt_prefix = case.get("prompt_prefix")
+    if isinstance(prompt_prefix, str) and prompt_prefix:
+        prime_suffix = (
+            "Question: Return exactly CACHE-PRIME-ONLY\n"
+            "Answer format: CACHE-PRIME-ONLY"
+        )
+        prime_case["prompt_suffix"] = prime_suffix
+        prime_case["prompt"] = f"{prompt_prefix}{prime_suffix}"
+    else:
+        base_prompt = str(case.get("prompt") or "")
+        prime_case["prompt"] = f"{base_prompt}\n\n[cache-prime-only]"
+
+    prime_case.pop("needle_key", None)
+    prime_case.pop("needle_value", None)
+    prime_case.pop("needle_position", None)
+    return prime_case
+
+
 def _build_cache_prime_cases(cases: list[Dict[str, Any]], cache_mode: str) -> list[Dict[str, Any]]:
     if cache_mode == "none":
         return []
@@ -62,9 +89,7 @@ def _build_cache_prime_cases(cases: list[Dict[str, Any]], cache_mode: str) -> li
         if key in seen_keys:
             continue
         seen_keys.add(key)
-        prime_case = dict(case)
-        prime_case["case_name"] = _prime_case_name(str(case.get("case_name") or "cache-prime"))
-        prime_case["phase"] = "cache-prime"
+        prime_case = _build_prime_case(case)
         prime_cases.append(prime_case)
     return prime_cases
 
