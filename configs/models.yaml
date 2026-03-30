@@ -1,44 +1,78 @@
+defaults:
+  families:
+    qwen:
+      capabilities:
+        reasoning_supported: true
+      context: 262144
+
 models:
   - mlx-qwen3.5-9b-optiq-q4:
-      model: mlx-community/Qwen3.5-9B-OptiQ-4bit
-      runtime: mlx-optiq
-      size: 9
-      quant: 4
+      model:
+        name: mlx-community/Qwen3.5-9B-OptiQ-4bit
+        size: 9
+        quant: 4
+      runtime:
+        server: mlx-optiq
+      family: qwen
       aliases:
         - optiq-9b
+
   - mlx-qwen3.5-9b-q4:
-      model: mlx-community/Qwen3.5-9B-4bit
-      runtime: mlx
-      size: 9
-      quant: 4
+      model:
+        name: mlx-community/Qwen3.5-9B-4bit
+        size: 9
+        quant: 4
+      runtime:
+        server: mlx
+      family: qwen
       aliases:
         - qwen-9b
+
   - mlx-qwen3.5-27b-opus-q4:
-      model: mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit
-      runtime: mlx
-      size: 27
-      quant: 4
+      model:
+        name: mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit
+        size: 27
+        quant: 4
+      runtime:
+        server: mlx
+      family: qwen
       aliases:
         - opus-27b
+
   - mlx-qwen3.5-35b-a3b-q4:
-      model: mlx-community/Qwen3.5-35B-A3B-4bit
-      runtime: mlx
-      size: 27
-      quant: 4
+      model:
+        name: mlx-community/Qwen3.5-35B-A3B-4bit
+        size: 35
+        quant: 4
+      runtime:
+        server: mlx
+      family: qwen
       aliases:
         - qwen-35b-a3b
+
   - ollama-qwen3.5-9b:
-      model: qwen3.5:9b
-      runtime: ollama
-      build_name: qwen3.5-9b
-      num_ctx: 262144
+      model:
+        name: qwen3.5:9b
+        size: 9
+        quant: 4
+      runtime:
+        server: ollama
+      family: qwen
+
   - ollama-opus-27b:
-      model: sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M
-      runtime: ollama
-      build_name: opus-27b
-      num_ctx: 262144
+      model:
+        name: sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M
+        size: 27
+        quant: 4
+      runtime:
+        server: ollama
+      family: qwen
+
   - ollama-opus-35b:
-      model: RogerBen/qwen3.5-35b-opus-distill
-      runtime: ollama
-      build_name: opus-27b
-      num_ctx: 262144
+      model:
+        name: RogerBen/qwen3.5-35b-opus-distill
+        size: 35
+        quant: 4
+      runtime:
+        server: ollama
+      family: qwen

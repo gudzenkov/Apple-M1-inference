@@ -1,0 +1,38 @@
+defaults:
+  runtimes:
+    mlx:
+      reasoning_mode: "off"
+      cache_mode: prefill
+      transport: openai-compat
+      stream: "on"
+      usage_mode: hybrid
+      request_timeout_sec: 2000
+      server_start_timeout_sec: 300
+      reasoning_wire:
+        type: mlx-template
+        format_by_family:
+          qwen: qwen
+    mlx-optiq:
+      reasoning_mode: "off"
+      cache_mode: prefill
+      transport: openai-compat
+      stream: "on"
+      usage_mode: hybrid
+      request_timeout_sec: 2000
+      server_start_timeout_sec: 300
+      reasoning_wire:
+        type: mlx-template
+        format_by_family:
+          qwen: qwen
+    ollama:
+      reasoning_mode: "off"
+      cache_mode: request
+      transport: ollama-native
+      stream: "on"
+      usage_mode: server
+      request_timeout_sec: 2000
+      server_start_timeout_sec: 300
+      request_options:
+        num_ctx: 262144
+      reasoning_wire:
+        type: ollama-think
