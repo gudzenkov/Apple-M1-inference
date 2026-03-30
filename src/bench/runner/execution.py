@@ -84,6 +84,9 @@ def run_runtime_matrix(
                     continue
 
                 for case in cases:
+                    if state.fatal_error:
+                        print(f"Skipping remaining cases for {runtime}/{spec.model}: {state.fatal_error}", file=sys.stderr)
+                        break
                     print(f"Benchmarking {runtime}/{spec.model} [{case['case_name']}]...", file=sys.stderr)
                     run_dir = experiment_dir / run_param(
                         runtime,

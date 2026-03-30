@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 
 from src.bench.composition import ComposedBenchmarkSpec
 from src.bench.metrics.cache import clear_prompt_cache, prefill_prompt_cache
-from src.bench.metrics.common import sample_rss_gb
+from src.bench.metrics.common import error_result, sample_rss_gb
 from src.bench.metrics.ollama import benchmark_ollama_native, warmup_ollama_native
 from src.bench.metrics.openai import benchmark_openai_compat, warmup_openai_compat
 from src.bench.process import (
@@ -29,6 +29,7 @@ class ModelRunState:
     cache_ids: set[str] = field(default_factory=set)
     baseline_rss_gb: Optional[float] = None
     warmup_rss_gb: Optional[float] = None
+    fatal_error: Optional[str] = None
 
 
 class RuntimeHandler:
@@ -135,6 +136,28 @@ class MlxRuntimeHandler(RuntimeHandler):
         run_dir: Path,
         state: ModelRunState,
     ) -> Dict[str, Any]:
+        if state.fatal_error:
+            return error_result(
+                runtime=spec.runtime,
+                model=spec.model,
+                error=state.fatal_error,
+                transport_mode=spec.transport_mode,
+                reasoning={
+                    "requested": spec.reasoning_requested,
+                    "effective": spec.reasoning_effective,
+                    "supported": spec.reasoning_supported,
+                    "format": spec.reasoning_format,
+                    "source": spec.reasoning_source,
+                },
+                cache={
+                    "mode": spec.cache_mode,
+                    "used": False,
+                    "cache_id": None,
+                    "source": spec.cache_source,
+                },
+                stream_enabled=spec.stream_enabled,
+            )
+
         prompt_text = str(case.get("prompt") or "")
         extra_payload: Optional[Dict[str, Any]] = None
         used_prompt_cache = False
@@ -156,22 +179,41 @@ class MlxRuntimeHandler(RuntimeHandler):
                         prefill_url=spec.cache_prefill_url,
                         cache_id=cache_id,
                         prompt_prefix=prompt_prefix,
-                        request_timeout_sec=spec.request_timeout_sec,
+                        request_timeout_sec=max(spec.request_timeout_sec, 60),
                     )
                     if prefill.get("success"):
                         state.cache_ids.add(cache_id)
                     else:
-                        print(
-                            f"  ! Cache prefill failed for {cache_id}: {prefill.get('error', 'unknown')}",
-                            file=sys.stderr,
+                        prefill_error = str(prefill.get("error", "unknown"))
+                        state.fatal_error = (
+                            f"Cache prefill failed for {cache_id}: {prefill_error}"
                         )
-                if cache_id in state.cache_ids:
-                    prompt_text = prompt_suffix
-                    extra_payload = {
-                        "raw_prompt": prompt_suffix,
-                        "cache_id": cache_id,
-                    }
-                    used_prompt_cache = True
+                        return error_result(
+                            runtime=spec.runtime,
+                            model=spec.model,
+                            error=state.fatal_error,
+                            transport_mode=spec.transport_mode,
+                            reasoning={
+                                "requested": spec.reasoning_requested,
+                                "effective": spec.reasoning_effective,
+                                "supported": spec.reasoning_supported,
+                                "format": spec.reasoning_format,
+                                "source": spec.reasoning_source,
+                            },
+                            cache={
+                                "mode": spec.cache_mode,
+                                "used": False,
+                                "cache_id": cache_id,
+                                "source": spec.cache_source,
+                            },
+                            stream_enabled=spec.stream_enabled,
+                        )
+                prompt_text = prompt_suffix
+                extra_payload = {
+                    "raw_prompt": prompt_suffix,
+                    "cache_id": cache_id,
+                }
+                used_prompt_cache = True
 
         reasoning = {
             "requested": spec.reasoning_requested,
