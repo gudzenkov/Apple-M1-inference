@@ -19,14 +19,14 @@ It now uses 2 dataset modes:
 | mlx | Qwen3.5-9B-4bit | 64k | 78.683 | 25.722 | - | 0.868 | 12.94 | 0.967 | 0.800 | 0.175 |
 | mlx-optiq | Qwen3.5-9B-OptiQ-4bit | 64k | 93.727 | 26.167 | - | 0.689 | 15.35 | 1.000 | 1.000 | 0.000 |
 | delta (mlx vs optiq) | - | - | +19.12% | +1.73% | - | -20.62% | +18.62% | +3.41% | +25.00% | - |
-| ollama (`cache=request`) | qwen3.5:9b | 64k | 173.793 | 6.342 | 372.316 | 12.596 | 16.61 | 1.000 | 1.000 | 0.000 |
+| ollama (`cache=request`) | qwen3.5:9b | 64k | 177.292 | 8.012 | 362.009 | 17.333 | 16.73 | 1.000 | 1.000 | 0.000 |
 | mlx (`cache=prefill`) | Qwen3.5-9B-4bit | 64k | 93.739 | 29.818 | 4.697 | 0.743 | 12.94 | 1.000 | 1.000 | 0.000 |
-| delta (mlx vs ollama) | - | - | -46.06% | +370.17% | -98.74% | -94.10% | -22.06% | +0.00% | +0.00% | - |
+| delta (mlx vs ollama) | - | - | -47.13% | +272.16% | -98.70% | -95.71% | -22.65% | +0.00% | +0.00% | - |
 
 Source summaries:
 - `results/mlx-turboquant-s20-mt100-pc1/20260328T110231Z/mlx-qwen3.5-9b-q4-64k-s20.md`
 - `results/mlx-optiq-turboquant-s20-mt100-pc1/20260328T111033Z/mlx-optiq-qwen3.5-9b-optiq-q4-64k-s20.md`
-- `results/ollama-turboquant-s3-mt32-cache-request/20260330T165028Z/ollama-qwen3.5-9b-64k-s3.json`
+- `results/ollama-turboquant-s3-mt32-cache-request/20260330T173436Z/ollama-qwen3.5-9b-64k-s3.json`
 - `results/mlx-turboquant-s3-mt32-cache-prefill/20260330T171219Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s3.json`
 
 ## Performance
