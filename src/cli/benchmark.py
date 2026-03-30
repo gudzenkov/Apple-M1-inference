@@ -15,7 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["short", "long", "all", "quick", "context"],
         default="all",
         help=(
-            "Dataset profile: short (8k), long (variable context via --context, default 256k), or all. "
+            "Dataset profile: short (8k), long (variable context via --context, default 64k), or all. "
             "Legacy aliases: quick->short, context->long"
         ),
     )

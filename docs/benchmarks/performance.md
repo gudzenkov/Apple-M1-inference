@@ -7,7 +7,7 @@ Benchmark workflow for comparing the two local MLX inference servers:
 The benchmark runner manages server lifecycle to avoid OOM from running both MLX servers at once.
 It now uses 2 dataset modes:
 - `short` (fixed `8k`, needle-in-haystack retrieval)
-- `long` (variable context via `--context`, default `256k`, needle-in-haystack retrieval)
+- `long` (variable context via `--context`, default `64k`, needle-in-haystack retrieval)
 
 ## Recall
 
@@ -50,7 +50,7 @@ source .venv/bin/activate
 
 # Default benchmark run from Justfile:
 # - short: 8k context, retrieval-style samples
-# - long: 256k context (or --context override), retrieval-style samples
+# - long: 64k context (or --context override), retrieval-style samples
 just bench
 
 # Equivalent direct command
@@ -128,7 +128,7 @@ uv run benchmark --runtime both --model mlx-community/Qwen3.5-9B-OptiQ-4bit
 # Run short dataset only (8k)
 uv run benchmark --dataset short --runtime both --samples 3
 
-# Run long dataset only (default 256k)
+# Run long dataset only (default 64k)
 uv run benchmark --dataset long --runtime both --samples 3
 
 # Run long dataset context sweep
