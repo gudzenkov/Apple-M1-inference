@@ -52,12 +52,12 @@ Example `devcontainer.json`:
 {
   "name": "localfirst",
   "containerEnv": {
-    "LOCAL_LLM_BASE_URL": "http://host.docker.internal:8080/v1",
-    "LOCAL_LLM_API_KEY": "local"
+    "LLM_BASE_URL": "http://host.docker.internal:8080/v1",
+    "LLM_API_KEY": "local"
   },
   "remoteEnv": {
-    "LOCAL_LLM_BASE_URL": "http://host.docker.internal:8080/v1",
-    "LOCAL_LLM_API_KEY": "local"
+    "LLM_BASE_URL": "http://host.docker.internal:8080/v1",
+    "LLM_API_KEY": "local"
   }
 }
 ```
@@ -84,8 +84,8 @@ Example `devcontainer.json` override for Orb only:
 {
   "runArgs": ["--network=host"],
   "containerEnv": {
-    "LOCAL_LLM_BASE_URL": "http://localhost:8080/v1",
-    "LOCAL_LLM_API_KEY": "local"
+    "LLM_BASE_URL": "http://localhost:8080/v1",
+    "LLM_API_KEY": "local"
   }
 }
 ```

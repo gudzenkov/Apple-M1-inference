@@ -8,7 +8,7 @@ Copy the shipped settings into your home directory:
 ```bash
 cp .qwen/settings.json ~/.qwen/settings.json
 ```
-The file is already configured for the Optiq server (`http://127.0.0.1:8080/v1`) with `LOCAL_LLM_API_KEY=local` as the API key and a default generation config tuned for longer contexts.
+The file is already configured for the Optiq server (`http://127.0.0.1:8080/v1`) with `LLM_API_KEY=local` as the API key and a default generation config tuned for longer contexts.
 
 ## Manual setup
 
