@@ -24,7 +24,7 @@ from src.bench.process import (
     warmup_model,
 )
 from src.bench.utils import default_output_filename, default_summary_stem, resolve_experiment_paths
-from src.shared.models import get_model_key
+from src.shared.models import get_default_model_id, get_model_key
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 LOG_DIR = ROOT_DIR / "logs"
@@ -471,6 +471,10 @@ def run_benchmark(args: Any) -> int:
         models = select_models(config, args.model, args.all_models)
 
         for model in models:
+            tokenizer_model_id = model
+            if runtime == "ollama":
+                tokenizer_model_id = get_default_model_id(runtime="mlx")
+
             cases = build_cases(
                 dataset=args.dataset,
                 samples=args.samples,
@@ -478,7 +482,7 @@ def run_benchmark(args: Any) -> int:
                 prompt=args.prompt,
                 prompt_max_tokens=args.max_tokens,
                 contexts_k=getattr(args, "contexts_k", None),
-                tokenizer_model_id=model,
+                tokenizer_model_id=tokenizer_model_id,
             )
             managed_proc: Optional[Any] = None
             memory_pid: Optional[int] = None
