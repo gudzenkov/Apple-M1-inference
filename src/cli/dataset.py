@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from src.bench.dataset_tools import (
+from src.bench.dataset import (
     fetch_and_parse,
     fetch_html,
     get_dataset_source,

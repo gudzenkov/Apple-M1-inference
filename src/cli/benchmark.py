@@ -3,8 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from src.bench.dataset_tools import DEFAULT_DATASET_MD
-from src.bench.datasets import normalize_dataset_mode, parse_context_list
+from src.bench.dataset import DEFAULT_DATASET_MD, normalize_dataset_mode, parse_context_list
 from src.bench.runner import run_benchmark
 
 
@@ -70,8 +69,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--request-timeout",
         type=int,
-        default=2000,
-        help="Per-request timeout in seconds (default: 2000)",
+        default=None,
+        help="Override per-request timeout in seconds (default comes from configs/bench.yaml)",
     )
     parser.add_argument(
         "--output",
@@ -91,34 +90,35 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip warmup request",
     )
-    cache_group = parser.add_mutually_exclusive_group()
-    cache_group.add_argument(
-        "--use-prompt-cache",
-        dest="use_prompt_cache",
-        action="store_true",
-        help=(
-            "Use server-side prompt cache for long-mode cases by pre-filling shared context "
-            "once and querying suffix prompts against that cached prefix (default: enabled)."
-        ),
-    )
-    cache_group.add_argument(
-        "--no-use-prompt-cache",
-        dest="use_prompt_cache",
-        action="store_false",
-        help="Disable prompt/prefill cache logic.",
-    )
-    parser.set_defaults(use_prompt_cache=True)
     parser.add_argument(
-        "--reasoning",
-        choices=["off", "on"],
-        default="off",
-        help="Reasoning mode for request payloads (default: off).",
+        "--reasoning-mode",
+        choices=["auto", "off", "on"],
+        default="auto",
+        help="Reasoning mode (default: auto, resolved from composed runtime/profile policy).",
+    )
+    parser.add_argument(
+        "--cache-mode",
+        choices=["auto", "prefill", "request", "none"],
+        default="auto",
+        help="Cache mode (default: auto, resolved from composed runtime policy).",
+    )
+    parser.add_argument(
+        "--stream",
+        choices=["auto", "on", "off"],
+        default="auto",
+        help="Streaming mode (default: auto, resolved from composed runtime policy).",
+    )
+    parser.add_argument(
+        "--transport",
+        choices=["auto", "ollama-native", "openai-compat"],
+        default="auto",
+        help="Transport mode (default: auto, resolved from composed runtime policy).",
     )
     parser.add_argument(
         "--server-start-timeout",
         type=int,
-        default=300,
-        help="Seconds to wait for managed MLX server readiness (default: 300)",
+        default=None,
+        help="Override seconds to wait for managed MLX server readiness",
     )
     return parser
 
@@ -129,6 +129,10 @@ def main() -> int:
 
     if args.samples < 3:
         raise SystemExit("--samples must be >= 3")
+    if args.request_timeout is not None and args.request_timeout <= 0:
+        raise SystemExit("--request-timeout must be > 0")
+    if args.server_start_timeout is not None and args.server_start_timeout <= 0:
+        raise SystemExit("--server-start-timeout must be > 0")
 
     raw_dataset = str(args.dataset)
     args.dataset = normalize_dataset_mode(raw_dataset)

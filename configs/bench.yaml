@@ -1,3 +1,64 @@
+infra:
+  runtimes:
+    mlx:
+      managed_server: true
+      model_runtime: mlx
+      chat_url_openai: http://127.0.0.1:8000/v1/chat/completions
+      health_url: http://127.0.0.1:8000/v1/models
+      cache_prefill_url: http://127.0.0.1:8000/v1/cache/prefill
+      cache_clear_url: http://127.0.0.1:8000/v1/cache/clear
+      port: 8000
+      start_cmd:
+        - uv
+        - run
+        - mlx-openai-server
+        - serve
+      log_file: logs/mlx-server.log
+      process_hint: mlx_openai_server
+      max_context_tokens: 256000
+      supported_transports:
+        - openai-compat
+      supported_cache_modes:
+        - prefill
+        - none
+
+    mlx-optiq:
+      managed_server: true
+      model_runtime: mlx-optiq
+      chat_url_openai: http://127.0.0.1:8080/v1/chat/completions
+      health_url: http://127.0.0.1:8080/v1/models
+      cache_prefill_url: http://127.0.0.1:8080/v1/cache/prefill
+      cache_clear_url: http://127.0.0.1:8080/v1/cache/clear
+      port: 8080
+      start_cmd:
+        - uv
+        - run
+        - mlx-openai-optiq-server
+        - serve
+      log_file: logs/mlx-optiq-server.log
+      process_hint: mlx_openai_optiq_server
+      max_context_tokens: 256000
+      supported_transports:
+        - openai-compat
+      supported_cache_modes:
+        - prefill
+        - none
+
+    ollama:
+      managed_server: false
+      model_runtime: ollama
+      chat_url_openai: http://127.0.0.1:11434/v1/chat/completions
+      chat_url_native: http://127.0.0.1:11434/api/chat
+      health_url: http://127.0.0.1:11434/v1/models
+      port: 11434
+      process_hint: ollama
+      max_context_tokens: 262144
+      supported_transports:
+        - ollama-native
+      supported_cache_modes:
+        - request
+        - none
+
 defaults:
   runtimes:
     mlx:
@@ -5,34 +66,25 @@ defaults:
       cache_mode: prefill
       transport: openai-compat
       stream: "on"
-      usage_mode: hybrid
       request_timeout_sec: 2000
       server_start_timeout_sec: 300
-      reasoning_wire:
-        type: mlx-template
-        format_by_family:
-          qwen: qwen
+
     mlx-optiq:
       reasoning_mode: "off"
       cache_mode: prefill
       transport: openai-compat
       stream: "on"
-      usage_mode: hybrid
       request_timeout_sec: 2000
       server_start_timeout_sec: 300
-      reasoning_wire:
-        type: mlx-template
-        format_by_family:
-          qwen: qwen
+
     ollama:
       reasoning_mode: "off"
       cache_mode: request
       transport: ollama-native
       stream: "on"
-      usage_mode: server
       request_timeout_sec: 2000
       server_start_timeout_sec: 300
       request_options:
         num_ctx: 262144
-      reasoning_wire:
-        type: ollama-think
+
+models: {}

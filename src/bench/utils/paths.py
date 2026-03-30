@@ -4,15 +4,12 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-def _slug(value: str) -> str:
-    out = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip())
-    out = re.sub(r"-{2,}", "-", out).strip("-._")
-    return out or "x"
+from src.bench.utils.text import slug
 
 
 def _model_label(model_id: str, runtime: str) -> str:
     _ = runtime
-    return _slug(model_id)
+    return slug(model_id)
 
 
 def _strip_quant_suffix(model_key: str) -> str:
@@ -53,7 +50,7 @@ def _context_part_for_naming(args: Any, results: List[Dict[str, Any]], runtime: 
         return f"{contexts[0]}k"
     if contexts:
         return "-".join(f"{context_k}k" for context_k in contexts)
-    return _slug(str(getattr(args, "dataset", "dataset")))
+    return slug(str(getattr(args, "dataset", "dataset")))
 
 
 def default_output_filename(args: Any, runtimes: List[str], results: List[Dict[str, Any]]) -> str:
@@ -62,7 +59,7 @@ def default_output_filename(args: Any, runtimes: List[str], results: List[Dict[s
     if model_id:
         model_part = _strip_quant_suffix(_model_label(model_id, runtime))
         context_part = _context_part_for_naming(args, results, runtime)
-        return _slug(f"benchmark_{model_part}_{context_part}_s{args.samples}") + ".jsonl"
+        return slug(f"benchmark_{model_part}_{context_part}_s{args.samples}") + ".jsonl"
 
     if getattr(args, "contexts_k", None):
         context_slug = "-".join(f"{c}k" for c in args.contexts_k)
@@ -78,7 +75,7 @@ def default_summary_stem(args: Any, runtimes: List[str], results: List[Dict[str,
         model_part = _model_label(model_id, runtime)
     else:
         model_part = "model"
-    return _slug(f"{runtime}-{model_part}-{context_part}-s{args.samples}")
+    return slug(f"{runtime}-{model_part}-{context_part}-s{args.samples}")
 
 
 def resolve_experiment_paths(root_dir: Path, experiment_group: str, experiment_stamp: str) -> tuple[Path, Path]:

@@ -48,10 +48,15 @@ def resolve_runtime(
 ) -> Tuple[str, str, int]:
     model_ref = os.getenv("HUGGINGFACE_MODEL", get_default_model_id(runtime=model_runtime))
     model_id = resolve_model_reference(model_ref, runtime=model_runtime)
+    host, port = resolve_host_port(default_port=default_port, port_env_name=port_env_name)
+    return model_id, host, port
+
+
+def resolve_host_port(default_port: int, port_env_name: str = "PORT") -> Tuple[str, int]:
     host = os.getenv("HOST", DEFAULT_HOST)
     port_raw = os.getenv("PORT") or os.getenv(port_env_name) or str(default_port)
     port = int(port_raw)
-    return model_id, host, port
+    return host, port
 
 
 def install_shutdown_endpoint(app: FastAPI, server_name: str) -> None:

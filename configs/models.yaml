@@ -5,6 +5,19 @@ defaults:
         reasoning_supported: true
       context: 262144
 
+profiles:
+  mlx/qwen:
+    reasoning:
+      format: qwen
+
+  mlx-optiq/qwen:
+    reasoning:
+      format: qwen
+
+  ollama/qwen:
+    reasoning:
+      format: ollama-think
+
 models:
   - mlx-qwen3.5-9b-optiq-q4:
       model:
