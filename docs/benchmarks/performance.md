@@ -11,17 +11,23 @@ It now uses 2 dataset modes:
 
 ## Recall
 
-64k needle-in-haystack run (`samples=20`, `use_prompt_cache=true`, date `2026-03-28`):
+64k needle-in-haystack run (`samples=20`, `use_prompt_cache=true`, date `2026-03-28`)
+64k needle-in-haystack run (`samples=3`, `stream=on`, `cache=auto`, `reasoning=off`, date `2026-03-30`):
 
-| Runtime | Model | Context | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| mlx | Qwen3.5-9B-4bit | 64k | 78.683 | 25.722 | 0.868 | 12.94 | 0.967 | 0.800 | 0.175 |
-| mlx-optiq | Qwen3.5-9B-OptiQ-4bit | 64k | 93.727 | 26.167 | 0.689 | 15.35 | 1.000 | 1.000 | 0.000 |
-| delta | - | - | +19.12% | +1.73% | -20.62% | +18.62% | +3.41% | +25.00% | - |
+| Runtime | Model | Context | Prompt tps | Gen tps | Prefill (s) | TTFT (s) | Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| mlx | Qwen3.5-9B-4bit | 64k | 78.683 | 25.722 | - | 0.868 | 12.94 | 0.967 | 0.800 | 0.175 |
+| mlx-optiq | Qwen3.5-9B-OptiQ-4bit | 64k | 93.727 | 26.167 | - | 0.689 | 15.35 | 1.000 | 1.000 | 0.000 |
+| delta (mlx vs optiq) | - | - | +19.12% | +1.73% | - | -20.62% | +18.62% | +3.41% | +25.00% | - |
+| ollama (`cache=request`) | qwen3.5:9b | 64k | 173.793 | 6.342 | 372.316 | 12.596 | 16.61 | 1.000 | 1.000 | 0.000 |
+| mlx (`cache=prefill`) | Qwen3.5-9B-4bit | 64k | 93.739 | 29.818 | 4.697 | 0.743 | 12.94 | 1.000 | 1.000 | 0.000 |
+| delta (mlx vs ollama) | - | - | -46.06% | +370.17% | -98.74% | -94.10% | -22.06% | +0.00% | +0.00% | - |
 
 Source summaries:
 - `results/mlx-turboquant-s20-mt100-pc1/20260328T110231Z/mlx-qwen3.5-9b-q4-64k-s20.md`
 - `results/mlx-optiq-turboquant-s20-mt100-pc1/20260328T111033Z/mlx-optiq-qwen3.5-9b-optiq-q4-64k-s20.md`
+- `results/ollama-turboquant-s3-mt32-cache-request/20260330T165028Z/ollama-qwen3.5-9b-64k-s3.json`
+- `results/mlx-turboquant-s3-mt32-cache-prefill/20260330T171219Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s3.json`
 
 ## Performance
 
@@ -161,6 +167,7 @@ uv run benchmark \
 ## Metrics recorded
 
 Each JSONL line includes:
+- `phase` (`cache-prime` for run0, `benchmark` for run1..N)
 - `total_time`
 - `prompt_tokens`
 - `completion_tokens`
@@ -168,6 +175,7 @@ Each JSONL line includes:
 - `tokens_per_second`
 - `prompt_tps`
 - `generation_tps`
+- `prefill_sec`
 - `ttft_sec`
 - `server_total_time_sec`
 - `memory_gb`
@@ -181,6 +189,7 @@ Each JSONL line includes:
 
 Summary reports also include:
 - runtime-level and runtime+context averages for retrieval score and exact rate
+- `avg_prefill_sec` (from run0 cache-prime when available)
 - `retrieval_exact_ci95_half_width` (95% CI half-width for exact-match rate)
 
 Memory metrics:
