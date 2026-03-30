@@ -38,9 +38,32 @@ def row_total_time(row: Dict[str, Any]) -> float:
 def row_ttft(row: Dict[str, Any]) -> float:
     timing = row.get("timing")
     if isinstance(timing, dict):
+        server = timing.get("server")
+        if isinstance(server, dict):
+            server_ttft = to_float(server.get("ttft_sec"))
+            if server_ttft > 0:
+                return server_ttft
         client = timing.get("client")
         if isinstance(client, dict):
-            return to_float(client.get("ttft_sec"))
+            client_ttft = to_float(client.get("ttft_sec"))
+            if client_ttft > 0:
+                return client_ttft
+    return 0.0
+
+
+def row_prompt_tokens(row: Dict[str, Any]) -> float:
+    usage = row.get("usage")
+    if isinstance(usage, dict):
+        normalized = usage.get("normalized")
+        if isinstance(normalized, dict):
+            tokens = to_float(normalized.get("prompt_tokens"))
+            if tokens > 0:
+                return tokens
+        server = usage.get("server")
+        if isinstance(server, dict):
+            tokens = to_float(server.get("prompt_tokens"))
+            if tokens > 0:
+                return tokens
     return 0.0
 
 

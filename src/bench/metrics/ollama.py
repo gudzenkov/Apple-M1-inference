@@ -221,8 +221,6 @@ def benchmark_ollama_native(
             message = response_json.get("message") if isinstance(response_json, dict) else {}
             if isinstance(message, dict):
                 response_text = str(message.get("content") or "").strip()
-                if response_text:
-                    first_token_at = time.perf_counter()
     finally:
         peak_memory_gb = memory_monitor.stop()
         if response is not None:
@@ -250,7 +248,7 @@ def benchmark_ollama_native(
     )
     eval_duration_sec = ns_to_sec(response_json.get("eval_duration")) if isinstance(response_json, dict) else 0.0
 
-    client_ttft_sec = (first_token_at - started_at) if first_token_at is not None else total_time_sec
+    client_ttft_sec = (first_token_at - started_at) if first_token_at is not None else None
 
     prompt_tps = (
         float(prompt_eval_count) / prompt_eval_duration_sec
@@ -266,7 +264,7 @@ def benchmark_ollama_native(
 
     sources = {
         "timing.client.total_time_sec": "client_derived",
-        "timing.client.ttft_sec": "client_derived",
+        "timing.client.ttft_sec": "client_derived" if client_ttft_sec is not None else "unavailable_non_stream",
         "timing.server.total_time_sec": "server" if total_duration_sec > 0 else "client_derived",
         "timing.server.load_time_sec": "server" if load_duration_sec > 0 else "estimated",
         "timing.server.prompt_eval_sec": "server" if prompt_eval_duration_sec > 0 else "estimated",
@@ -303,7 +301,7 @@ def benchmark_ollama_native(
         "timing": {
             "client": {
                 "total_time_sec": round(total_time_sec, 4),
-                "ttft_sec": round(client_ttft_sec, 4),
+                "ttft_sec": round(client_ttft_sec, 4) if client_ttft_sec is not None else None,
             },
             "server": {
                 "total_time_sec": round(total_duration_sec if total_duration_sec > 0 else total_time_sec, 4),

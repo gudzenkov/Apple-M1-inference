@@ -238,8 +238,6 @@ def benchmark_openai_compat(
             if isinstance(choices, list) and choices:
                 choice0 = choices[0] if isinstance(choices[0], dict) else {}
                 response_text = extract_text_from_message(choice0.get("message"))
-            if response_text:
-                first_token_at = time.perf_counter()
     finally:
         peak_memory_gb = memory_monitor.stop()
         if response is not None:
@@ -280,9 +278,9 @@ def benchmark_openai_compat(
     sources["usage.server.completion_tokens"] = "server" if completion_tokens_server > 0 else "estimated"
     sources["usage.server.total_tokens"] = "server" if total_tokens_server > 0 else "estimated"
 
-    client_ttft_sec = (first_token_at - started_at) if first_token_at is not None else total_time_sec
+    client_ttft_sec = (first_token_at - started_at) if first_token_at is not None else None
     sources["timing.client.total_time_sec"] = "client_derived"
-    sources["timing.client.ttft_sec"] = "client_derived"
+    sources["timing.client.ttft_sec"] = "client_derived" if client_ttft_sec is not None else "unavailable_non_stream"
 
     server_ttft_sec = safe_float(perf.get("ttft_sec")) if isinstance(perf, dict) else 0.0
     server_total_time_sec = safe_float(perf.get("total_time_sec")) if isinstance(perf, dict) else 0.0
@@ -300,14 +298,14 @@ def benchmark_openai_compat(
 
     if prompt_tps > 0:
         sources["throughput.prompt_tps"] = "server"
-    elif client_ttft_sec > 0:
+    elif client_ttft_sec is not None and client_ttft_sec > 0:
         prompt_tps = float(prompt_tokens_normalized) / client_ttft_sec
         sources["throughput.prompt_tps"] = "estimated"
 
-    decode_time = max(total_time_sec - client_ttft_sec, 1e-9)
+    decode_time = max(total_time_sec - client_ttft_sec, 1e-9) if client_ttft_sec is not None else None
     if generation_tps > 0:
         sources["throughput.generation_tps"] = "server"
-    elif completion_tokens_normalized > 0 and decode_time > 0:
+    elif decode_time is not None and completion_tokens_normalized > 0 and decode_time > 0:
         generation_tps = float(completion_tokens_normalized) / decode_time
         sources["throughput.generation_tps"] = "estimated"
 
@@ -341,7 +339,7 @@ def benchmark_openai_compat(
         "timing": {
             "client": {
                 "total_time_sec": round(total_time_sec, 4),
-                "ttft_sec": round(client_ttft_sec, 4),
+                "ttft_sec": round(client_ttft_sec, 4) if client_ttft_sec is not None else None,
             },
             "server": {
                 "total_time_sec": round(server_total_time_sec, 4),

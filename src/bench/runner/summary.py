@@ -10,6 +10,7 @@ from src.bench.runner.stats import (
     avg,
     ci95_half_width_for_rate,
     row_peak_memory,
+    row_prompt_tokens,
     row_retrieval_exact,
     row_retrieval_score,
     row_throughput,
@@ -24,6 +25,47 @@ def display_path(path: Path, root_dir: Path) -> str:
         return str(path.relative_to(root_dir))
     except Exception:  # noqa: BLE001
         return str(path)
+
+
+def _is_cache_enabled(row: Dict[str, Any]) -> bool:
+    cache = row.get("cache")
+    if not isinstance(cache, dict):
+        return False
+    mode = str(cache.get("mode") or "none").strip().lower()
+    return mode != "none"
+
+
+def _summary_prompt_tps(rows: list[Dict[str, Any]]) -> float:
+    if not rows:
+        return 0.0
+
+    # With cache enabled, only the first successful sample represents full prompt work.
+    if any(_is_cache_enabled(row) for row in rows):
+        for row in rows:
+            prompt_tps = row_throughput(row, "prompt_tps")
+            if prompt_tps > 0:
+                return prompt_tps
+        return 0.0
+
+    # Without cache, use weighted aggregation: sum(prompt_tokens)/sum(prompt_time).
+    prompt_tokens_total = 0.0
+    prompt_time_total = 0.0
+    for row in rows:
+        prompt_tps = row_throughput(row, "prompt_tps")
+        prompt_tokens = row_prompt_tokens(row)
+        if prompt_tps > 0 and prompt_tokens > 0:
+            prompt_tokens_total += prompt_tokens
+            prompt_time_total += (prompt_tokens / prompt_tps)
+
+    if prompt_tokens_total > 0 and prompt_time_total > 0:
+        return prompt_tokens_total / prompt_time_total
+
+    return avg([row_throughput(row, "prompt_tps") for row in rows])
+
+
+def _summary_ttft(rows: list[Dict[str, Any]]) -> float:
+    ttft_values = [row_ttft(row) for row in rows if row_ttft(row) > 0]
+    return avg(ttft_values)
 
 
 def runtime_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> list[Dict[str, Any]]:
@@ -65,12 +107,12 @@ def runtime_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> 
                     avg([row_throughput(r, "tokens_per_second") for r in runtime_results]),
                     3,
                 ),
-                "avg_prompt_tps": round(avg([row_throughput(r, "prompt_tps") for r in runtime_results]), 3),
+                "avg_prompt_tps": round(_summary_prompt_tps(runtime_results), 3),
                 "avg_generation_tps": round(
                     avg([row_throughput(r, "generation_tps") for r in runtime_results]),
                     3,
                 ),
-                "avg_ttft_sec": round(avg([row_ttft(r) for r in runtime_results]), 3),
+                "avg_ttft_sec": round(_summary_ttft(runtime_results), 3),
                 "avg_memory_gb": round(avg([row_peak_memory(r) for r in runtime_results]), 3),
                 "avg_retrieval_score_float": round(avg(retrieval_scores), 3),
                 "retrieval_exact_rate": round(retrieval_exact_rate, 3),
@@ -110,12 +152,12 @@ def runtime_context_summary_rows(results: list[Dict[str, Any]], runtimes: list[s
                         avg([row_throughput(r, "tokens_per_second") for r in group]),
                         3,
                     ),
-                    "avg_prompt_tps": round(avg([row_throughput(r, "prompt_tps") for r in group]), 3),
+                    "avg_prompt_tps": round(_summary_prompt_tps(group), 3),
                     "avg_generation_tps": round(
                         avg([row_throughput(r, "generation_tps") for r in group]),
                         3,
                     ),
-                    "avg_ttft_sec": round(avg([row_ttft(r) for r in group]), 3),
+                    "avg_ttft_sec": round(_summary_ttft(group), 3),
                     "avg_memory_gb": round(avg([row_peak_memory(r) for r in group]), 3),
                     "avg_retrieval_score_float": round(avg(retrieval_scores), 3),
                     "retrieval_exact_rate": round(retrieval_exact_rate, 3),
