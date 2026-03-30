@@ -9,7 +9,7 @@ def prefill_prompt_cache(
     prefill_url: str,
     cache_id: str,
     prompt_prefix: str,
-    request_timeout_sec: int = 2000,
+    request_timeout_sec: int,
 ) -> Dict[str, Any]:
     payload = {
         "cache_id": cache_id,
@@ -36,7 +36,7 @@ def prefill_prompt_cache(
 def clear_prompt_cache(
     clear_url: str,
     cache_id: str,
-    request_timeout_sec: int = 120,
+    request_timeout_sec: int,
 ) -> Dict[str, Any]:
     payload = {
         "cache_id": cache_id,

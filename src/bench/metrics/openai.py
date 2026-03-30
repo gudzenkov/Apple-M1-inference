@@ -32,7 +32,7 @@ def benchmark_openai_compat(
     transport_mode: str,
     memory_pid: Optional[int] = None,
     memory_pattern: Optional[str] = None,
-    request_timeout_sec: int = 2000,
+    request_timeout_sec: int,
     artifact_dir: Optional[Path] = None,
     extra_payload: Optional[Dict[str, Any]] = None,
     reasoning: Optional[Dict[str, Any]] = None,

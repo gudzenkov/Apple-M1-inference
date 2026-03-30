@@ -181,10 +181,10 @@ def write_summary_reports(
         "dataset_file": str(args.dataset_file),
         "prompt_mode": bool(args.prompt),
         "skip_warmup": bool(args.skip_warmup),
-        "reasoning_mode": str(getattr(args, "reasoning_mode", "auto")),
-        "cache_mode": str(getattr(args, "cache_mode", "auto")),
-        "stream": str(getattr(args, "stream", "auto")),
-        "transport": str(getattr(args, "transport", "auto")),
+        "reasoning_mode": str(getattr(args, "reasoning_mode")),
+        "cache_mode": str(getattr(args, "cache_mode")),
+        "stream": str(getattr(args, "stream")),
+        "transport": str(getattr(args, "transport")),
     }
 
     summary_json = {

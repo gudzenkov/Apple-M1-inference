@@ -253,6 +253,7 @@ class MlxRuntimeHandler(RuntimeHandler):
                     clear_result = clear_prompt_cache(
                         clear_url=spec.cache_clear_url,
                         cache_id=cache_id,
+                        request_timeout_sec=spec.request_timeout_sec,
                     )
                     if not clear_result.get("success"):
                         print(

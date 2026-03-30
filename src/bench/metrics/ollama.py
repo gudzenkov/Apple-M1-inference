@@ -29,7 +29,7 @@ def benchmark_ollama_native(
     transport_mode: str,
     request_options: Optional[Dict[str, Any]] = None,
     memory_pattern: Optional[str] = None,
-    request_timeout_sec: int = 2000,
+    request_timeout_sec: int,
     artifact_dir: Optional[Path] = None,
     reasoning: Optional[Dict[str, Any]] = None,
     cache: Optional[Dict[str, Any]] = None,

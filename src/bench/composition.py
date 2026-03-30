@@ -612,7 +612,7 @@ def compose_benchmark_spec(runtime: str, model: str, args: Any) -> ComposedBench
         start_cmd=start_cmd,
         log_file=str(infra.get("log_file") or "").strip() or None,
         process_hint=str(infra.get("process_hint") or "").strip() or None,
-        max_context_tokens=int(infra.get("max_context_tokens", 256000)),
+        max_context_tokens=int(infra["max_context_tokens"]),
         request_timeout_sec=int(request_timeout_sec),
         server_start_timeout_sec=int(server_start_timeout_sec),
         request_options=merged_request_options,
@@ -633,5 +633,8 @@ def compose_benchmark_spec(runtime: str, model: str, args: Any) -> ComposedBench
 def default_context_k_for_runtime(runtime: str) -> int:
     runtime_name = runtime.strip().lower()
     runtime_infra, _, _ = _load_bench_config()
-    max_context_tokens = int(runtime_infra.get(runtime_name, {}).get("max_context_tokens", 256000))
+    runtime_cfg = runtime_infra.get(runtime_name)
+    if runtime_cfg is None:
+        raise ValueError(f"Unknown runtime '{runtime_name}'")
+    max_context_tokens = int(runtime_cfg["max_context_tokens"])
     return max(1, int(max_context_tokens / 1000))
