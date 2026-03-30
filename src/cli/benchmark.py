@@ -29,14 +29,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--runtime",
-        choices=["mlx", "mlx-optiq", "both", "ollama", "all"],
-        default="both",
-        help="Runtime/server selection (default: both = mlx + mlx-optiq)",
+        choices=["auto", "mlx", "mlx-optiq", "ollama"],
+        default="auto",
+        help=(
+            "Runtime/server selection. Default: auto (resolve from --model via configs/models.yaml; "
+            "falls back to first configured model runtime)."
+        ),
     )
     parser.add_argument(
         "--model",
         default=None,
-        help="Model alias/key or configured full ID (overrides runtime default)",
+        help=(
+            "Model alias/key from configs/models.yaml or full model ID."
+        ),
     )
     parser.add_argument(
         "--samples",
@@ -86,13 +91,28 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip warmup request",
     )
-    parser.add_argument(
+    cache_group = parser.add_mutually_exclusive_group()
+    cache_group.add_argument(
         "--use-prompt-cache",
+        dest="use_prompt_cache",
         action="store_true",
         help=(
             "Use server-side prompt cache for long-mode cases by pre-filling shared context "
-            "once and querying suffix prompts against that cached prefix."
+            "once and querying suffix prompts against that cached prefix (default: enabled)."
         ),
+    )
+    cache_group.add_argument(
+        "--no-use-prompt-cache",
+        dest="use_prompt_cache",
+        action="store_false",
+        help="Disable prompt/prefill cache logic.",
+    )
+    parser.set_defaults(use_prompt_cache=True)
+    parser.add_argument(
+        "--reasoning",
+        choices=["off", "on"],
+        default="off",
+        help="Reasoning mode for request payloads (default: off).",
     )
     parser.add_argument(
         "--server-start-timeout",

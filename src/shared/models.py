@@ -258,5 +258,37 @@ def resolve_model_reference(model: str, runtime: str | None = None) -> str:
     )
 
 
+def resolve_runtime_for_model_reference(model: str) -> str:
+    model_ref = model.strip()
+    if not model_ref:
+        raise ValueError("Model reference is empty")
+
+    entries = load_models()
+
+    # Exact model id match has priority.
+    exact_matches = [entry for entry in entries if entry["model"] == model_ref]
+    if exact_matches:
+        runtimes = {entry["runtime"] for entry in exact_matches}
+        if len(runtimes) > 1:
+            raise ValueError(
+                f"Model '{model_ref}' is configured for multiple runtimes: {sorted(runtimes)}"
+            )
+        return exact_matches[0]["runtime"]
+
+    ref_lower = model_ref.lower()
+    alias_matches = [entry for entry in entries if ref_lower in entry["aliases"]]
+    if alias_matches:
+        runtimes = {entry["runtime"] for entry in alias_matches}
+        if len(runtimes) > 1:
+            raise ValueError(
+                f"Alias '{model_ref}' is configured for multiple runtimes: {sorted(runtimes)}"
+            )
+        return alias_matches[0]["runtime"]
+
+    raise ValueError(
+        f"Unknown model '{model_ref}'. Use configured full model id or alias from {MODEL_ALIASES_PATH}."
+    )
+
+
 def resolve_model_alias(model: str) -> str:
     return resolve_model_reference(model=model)

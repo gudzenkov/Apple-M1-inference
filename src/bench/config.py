@@ -61,10 +61,6 @@ CONFIGS: Dict[str, Dict[str, Any]] = {
 
 
 def resolve_runtimes(runtime_arg: str) -> List[str]:
-    if runtime_arg == "both":
-        return ["mlx", "mlx-optiq"]
-    if runtime_arg == "all":
-        return ["mlx", "mlx-optiq", "ollama"]
     return [runtime_arg]
 
 

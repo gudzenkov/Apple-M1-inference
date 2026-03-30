@@ -4,9 +4,6 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.shared.models import get_model_key
-
-
 def _slug(value: str) -> str:
     out = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip())
     out = re.sub(r"-{2,}", "-", out).strip("-._")
@@ -14,10 +11,8 @@ def _slug(value: str) -> str:
 
 
 def _model_label(model_id: str, runtime: str) -> str:
-    try:
-        return _slug(get_model_key(model_id, runtime=runtime))
-    except Exception:  # noqa: BLE001
-        return _slug(model_id)
+    _ = runtime
+    return _slug(model_id)
 
 
 def _strip_quant_suffix(model_key: str) -> str:

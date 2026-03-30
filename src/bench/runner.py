@@ -24,7 +24,11 @@ from src.bench.process import (
     warmup_model,
 )
 from src.bench.utils import default_output_filename, default_summary_stem, resolve_experiment_paths
-from src.shared.models import get_default_model_id, get_model_key
+from src.shared.models import (
+    get_default_model_id,
+    load_models,
+    resolve_runtime_for_model_reference,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 LOG_DIR = ROOT_DIR / "logs"
@@ -84,10 +88,8 @@ def _context_label(case: Dict[str, Any], default_context_k: int) -> str:
 
 
 def _model_label(model_id: str, runtime: str) -> str:
-    try:
-        return _slug(get_model_key(model_id, runtime=runtime))
-    except Exception:  # noqa: BLE001
-        return _slug(model_id)
+    _ = runtime
+    return _slug(model_id)
 
 
 def _run_param(runtime: str, model: str, case: Dict[str, Any], default_context_k: int) -> str:
@@ -163,6 +165,28 @@ def _retrieval_score(predicted: str, expected: str) -> float:
     max_len = max(len(predicted), len(expected), 1)
     dist = _levenshtein_distance(predicted, expected)
     return max(0.0, 1.0 - (float(dist) / float(max_len)))
+
+
+def _resolve_runtimes_for_args(args: Any) -> List[str]:
+    runtime_arg = str(getattr(args, "runtime", "auto") or "auto").strip().lower()
+    if runtime_arg != "auto":
+        return resolve_runtimes(runtime_arg)
+
+    model_arg = getattr(args, "model", None)
+    if isinstance(model_arg, str) and model_arg.strip():
+        return [resolve_runtime_for_model_reference(model_arg)]
+
+    if bool(getattr(args, "all_models", False)):
+        runtimes: List[str] = []
+        for entry in load_models():
+            runtime = str(entry["runtime"]).strip().lower()
+            if runtime and runtime not in runtimes:
+                runtimes.append(runtime)
+        if runtimes:
+            return runtimes
+
+    default_model = get_default_model_id()
+    return [resolve_runtime_for_model_reference(default_model)]
 
 
 def _runtime_summary_rows(results: List[Dict[str, Any]], runtimes: List[str]) -> List[Dict[str, Any]]:
@@ -267,6 +291,7 @@ def _write_summary_reports(
     args: Any,
     results: List[Dict[str, Any]],
     runtimes: List[str],
+    setup_metrics: List[Dict[str, Any]],
     output_path: Path,
     artifact_dir: Path,
     summary_dir: Optional[Path] = None,
@@ -293,12 +318,19 @@ def _write_summary_reports(
         else:
             contexts_k = sorted({_default_context_k_for_runtime(runtime) for runtime in runtimes})
 
+    resolved_models = sorted(
+        {
+            str(row.get("model", "")).strip()
+            for row in setup_metrics
+            if isinstance(row.get("model"), str) and str(row.get("model", "")).strip()
+        }
+    )
     params = {
         "dataset": args.dataset,
         "contexts_k": contexts_k,
         "runtime": args.runtime,
         "runtimes_resolved": runtimes,
-        "model": args.model,
+        "model": resolved_models[0] if len(resolved_models) == 1 else resolved_models,
         "all_models": bool(args.all_models),
         "samples": args.samples,
         "max_tokens": args.max_tokens,
@@ -308,6 +340,7 @@ def _write_summary_reports(
         "prompt_mode": bool(args.prompt),
         "skip_warmup": bool(args.skip_warmup),
         "use_prompt_cache": bool(getattr(args, "use_prompt_cache", False)),
+        "reasoning": str(getattr(args, "reasoning", "off")),
     }
 
     summary_json = {
@@ -322,6 +355,7 @@ def _write_summary_reports(
             "success": success_count,
             "failure": failure_count,
         },
+        "setup_metrics": setup_metrics,
         "runtime_summary": runtime_rows,
         "runtime_context_summary": runtime_context_rows,
         "results": results,
@@ -364,6 +398,7 @@ def _write_summary_reports(
         "prompt_mode",
         "skip_warmup",
         "use_prompt_cache",
+        "reasoning",
     ):
         lines.append(f"- `{key}`: `{params[key]}`")
     lines.append("")
@@ -379,6 +414,26 @@ def _write_summary_reports(
     lines.append(f"- `success`: `{success_count}`")
     lines.append(f"- `failure`: `{failure_count}`")
     lines.append("")
+    lines.append("## Setup Metrics")
+    lines.append("")
+    if setup_metrics:
+        lines.append(
+            "| Runtime | Model | Case build (s) | Download/check (s) | Server start (s) | Warmup (s) | Warmup OK |"
+        )
+        lines.append("|---|---|---:|---:|---:|---:|---:|")
+        for row in setup_metrics:
+            lines.append(
+                f"| {row.get('runtime', '-')} | {row.get('model', '-')} | "
+                f"{float(row.get('case_build_sec', 0.0) or 0.0):.3f} | "
+                f"{float(row.get('download_or_check_sec', 0.0) or 0.0):.3f} | "
+                f"{float(row.get('server_start_sec', 0.0) or 0.0):.3f} | "
+                f"{float(row.get('warmup_sec', 0.0) or 0.0):.3f} | "
+                f"{row.get('warmup_success', 'n/a')} |"
+            )
+    else:
+        lines.append("- (none)")
+    lines.append("")
+
     lines.append("## Runtime Summary")
     lines.append("")
     lines.append(
@@ -443,9 +498,10 @@ def _write_summary_reports(
 
 
 def run_benchmark(args: Any) -> int:
-    runtimes = resolve_runtimes(args.runtime)
+    runtimes = _resolve_runtimes_for_args(args)
 
     results: List[Dict[str, Any]] = []
+    setup_metrics: List[Dict[str, Any]] = []
     experiment_group = _experiment_group(args)
     experiment_stamp = _timestamp_slug()
     experiment_dir, results_dir = resolve_experiment_paths(
@@ -463,11 +519,6 @@ def run_benchmark(args: Any) -> int:
 
     for runtime in runtimes:
         config = CONFIGS[runtime]
-        if use_prompt_cache and runtime not in {"mlx", "mlx-optiq"}:
-            print(
-                f"Warning: --use-prompt-cache is not supported for runtime '{runtime}', using normal prompts.",
-                file=sys.stderr,
-            )
         models = select_models(config, args.model, args.all_models)
 
         for model in models:
@@ -475,6 +526,7 @@ def run_benchmark(args: Any) -> int:
             if runtime == "ollama":
                 tokenizer_model_id = get_default_model_id(runtime="mlx")
 
+            case_build_started = time.perf_counter()
             cases = build_cases(
                 dataset=args.dataset,
                 samples=args.samples,
@@ -484,14 +536,28 @@ def run_benchmark(args: Any) -> int:
                 contexts_k=getattr(args, "contexts_k", None),
                 tokenizer_model_id=tokenizer_model_id,
             )
+            case_build_sec = time.perf_counter() - case_build_started
             managed_proc: Optional[Any] = None
             memory_pid: Optional[int] = None
             default_context_k = _default_context_k_for_runtime(runtime)
             model_cache_ids: set[str] = set()
+            setup_entry: Dict[str, Any] = {
+                "runtime": runtime,
+                "model": model,
+                "case_build_sec": round(case_build_sec, 4),
+                "download_or_check_sec": 0.0,
+                "server_start_sec": 0.0,
+                "warmup_sec": 0.0,
+                "warmup_success": None,
+                "warmup_status_code": None,
+                "reasoning": str(getattr(args, "reasoning", "off")),
+                "prompt_cache_enabled": bool(use_prompt_cache),
+            }
 
             try:
                 if config["managed_server"]:
                     stop_mlx_servers(verbose=True)
+                    server_start_started = time.perf_counter()
                     managed_proc = start_managed_server(
                         runtime=runtime,
                         model=model,
@@ -500,16 +566,34 @@ def run_benchmark(args: Any) -> int:
                         config=config,
                         log_dir=LOG_DIR,
                     )
+                    setup_entry["server_start_sec"] = round(time.perf_counter() - server_start_started, 4)
                     memory_pid = managed_proc.pid
                     if not args.skip_warmup:
-                        warmup_model(config["chat_url"], model)
+                        warmup_result = warmup_model(
+                            config["chat_url"],
+                            model,
+                            reasoning_mode=str(getattr(args, "reasoning", "off")),
+                        )
+                        setup_entry["warmup_sec"] = float(warmup_result.get("warmup_sec", 0.0) or 0.0)
+                        setup_entry["warmup_success"] = bool(warmup_result.get("success", False))
+                        setup_entry["warmup_status_code"] = warmup_result.get("status_code")
                         time.sleep(1)
                 else:
+                    download_started = time.perf_counter()
                     if not ensure_model_downloaded(model, runtime):
                         print(f"Skipping {runtime}/{model} (download failed)", file=sys.stderr)
+                        setup_entry["download_or_check_sec"] = round(time.perf_counter() - download_started, 4)
                         continue
+                    setup_entry["download_or_check_sec"] = round(time.perf_counter() - download_started, 4)
                     if not args.skip_warmup:
-                        warmup_model(config["chat_url"], model)
+                        warmup_result = warmup_model(
+                            config["chat_url"],
+                            model,
+                            reasoning_mode=str(getattr(args, "reasoning", "off")),
+                        )
+                        setup_entry["warmup_sec"] = float(warmup_result.get("warmup_sec", 0.0) or 0.0)
+                        setup_entry["warmup_success"] = bool(warmup_result.get("success", False))
+                        setup_entry["warmup_status_code"] = warmup_result.get("status_code")
                         time.sleep(1)
 
                 for case in cases:
@@ -522,42 +606,60 @@ def run_benchmark(args: Any) -> int:
                     )
                     prompt_text = case["prompt"]
                     extra_payload: Optional[Dict[str, Any]] = None
-                    if use_prompt_cache and runtime in {"mlx", "mlx-optiq"}:
-                        prompt_prefix = case.get("prompt_prefix")
-                        prompt_suffix = case.get("prompt_suffix")
-                        prompt_cache_group = case.get("prompt_cache_group")
-                        prefill_url = str(config.get("cache_prefill_url", "") or "")
-                        if (
-                            isinstance(prompt_prefix, str)
-                            and isinstance(prompt_suffix, str)
-                            and isinstance(prompt_cache_group, str)
-                            and prefill_url
-                        ):
-                            cache_id = _slug(
-                                f"{runtime}-{_model_label(model, runtime)}-{prompt_cache_group}"
-                            )
-                            if cache_id not in model_cache_ids:
-                                prefill_result = prefill_prompt_cache(
-                                    prefill_url=prefill_url,
-                                    cache_id=cache_id,
-                                    prompt_prefix=prompt_prefix,
-                                    request_timeout_sec=args.request_timeout,
+                    if use_prompt_cache:
+                        if runtime in {"mlx", "mlx-optiq"}:
+                            prompt_prefix = case.get("prompt_prefix")
+                            prompt_suffix = case.get("prompt_suffix")
+                            prompt_cache_group = case.get("prompt_cache_group")
+                            prefill_url = str(config.get("cache_prefill_url", "") or "")
+                            if (
+                                isinstance(prompt_prefix, str)
+                                and isinstance(prompt_suffix, str)
+                                and isinstance(prompt_cache_group, str)
+                                and prefill_url
+                            ):
+                                cache_id = _slug(
+                                    f"{runtime}-{_model_label(model, runtime)}-{prompt_cache_group}"
                                 )
-                                if not prefill_result.get("success"):
-                                    print(
-                                        f"  ! Cache prefill failed for {cache_id}: "
-                                        f"{prefill_result.get('error', 'unknown')}. "
-                                        "Falling back to full prompt.",
-                                        file=sys.stderr,
+                                if cache_id not in model_cache_ids:
+                                    prefill_result = prefill_prompt_cache(
+                                        prefill_url=prefill_url,
+                                        cache_id=cache_id,
+                                        prompt_prefix=prompt_prefix,
+                                        request_timeout_sec=args.request_timeout,
                                     )
-                                else:
-                                    model_cache_ids.add(cache_id)
-                            if cache_id in model_cache_ids:
-                                prompt_text = prompt_suffix
-                                extra_payload = {
-                                    "raw_prompt": prompt_suffix,
-                                    "cache_id": cache_id,
-                                }
+                                    if not prefill_result.get("success"):
+                                        print(
+                                            f"  ! Cache prefill failed for {cache_id}: "
+                                            f"{prefill_result.get('error', 'unknown')}. "
+                                            "Falling back to full prompt.",
+                                            file=sys.stderr,
+                                        )
+                                    else:
+                                        model_cache_ids.add(cache_id)
+                                if cache_id in model_cache_ids:
+                                    prompt_text = prompt_suffix
+                                    extra_payload = {
+                                        "raw_prompt": prompt_suffix,
+                                        "cache_id": cache_id,
+                                    }
+                        elif runtime == "ollama":
+                            prompt_cache_group = case.get("prompt_cache_group")
+                            cache_key: Optional[str] = None
+                            if isinstance(prompt_cache_group, str) and prompt_cache_group:
+                                cache_key = _slug(
+                                    f"{runtime}-{_model_label(model, runtime)}-{prompt_cache_group}"
+                                )
+                            payload_patch: Dict[str, Any] = dict(extra_payload or {})
+                            payload_patch["cache_prompt"] = True
+                            options = payload_patch.get("options")
+                            if not isinstance(options, dict):
+                                options = {}
+                            options["cache_prompt"] = True
+                            payload_patch["options"] = options
+                            if cache_key:
+                                payload_patch["prompt_cache_key"] = cache_key
+                            extra_payload = payload_patch
 
                     result = benchmark_model(
                         chat_url=config["chat_url"],
@@ -570,11 +672,21 @@ def run_benchmark(args: Any) -> int:
                         request_timeout_sec=args.request_timeout,
                         artifact_dir=run_dir,
                         extra_payload=extra_payload,
+                        reasoning_mode=str(getattr(args, "reasoning", "off")),
+                        enable_stream_metrics=True,
+                    )
+                    used_prompt_cache = bool(
+                        extra_payload
+                        and (
+                            extra_payload.get("cache_id")
+                            or extra_payload.get("cache_prompt")
+                            or extra_payload.get("prompt_cache_key")
+                        )
                     )
                     case_meta: Dict[str, Any] = {
                         "dataset": case.get("dataset"),
                         "case_name": case.get("case_name"),
-                        "used_prompt_cache": bool(extra_payload and extra_payload.get("cache_id")),
+                        "used_prompt_cache": used_prompt_cache,
                     }
                     for key in (
                         "context_tokens_target",
@@ -613,6 +725,7 @@ def run_benchmark(args: Any) -> int:
                     else:
                         print(f"  ✗ {result.get('error', 'Unknown error')}", file=sys.stderr)
             finally:
+                setup_metrics.append(setup_entry)
                 if runtime in {"mlx", "mlx-optiq"} and model_cache_ids:
                     clear_url = str(config.get("cache_clear_url", "") or "")
                     if clear_url:
@@ -653,6 +766,7 @@ def run_benchmark(args: Any) -> int:
         args=args,
         results=results,
         runtimes=runtimes,
+        setup_metrics=setup_metrics,
         output_path=output_path,
         artifact_dir=experiment_dir,
         summary_dir=results_dir,

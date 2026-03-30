@@ -99,6 +99,51 @@ def _display_path(path: Optional[Path]) -> Optional[str]:
         return str(path)
 
 
+def _reasoning_payload(reasoning_mode: str) -> dict[str, str] | None:
+    mode = str(reasoning_mode or "off").strip().lower()
+    if mode == "off":
+        return {"effort": "none"}
+    if mode == "on":
+        return {"effort": "low"}
+    return None
+
+
+def _extract_text_from_message(message: Any) -> str:
+    if not isinstance(message, dict):
+        return ""
+    content = message.get("content")
+    if isinstance(content, str) and content.strip():
+        return content
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                text_part = item.get("text")
+                if isinstance(text_part, str) and text_part:
+                    chunks.append(text_part)
+        if chunks:
+            return "".join(chunks)
+    reasoning = message.get("reasoning")
+    if isinstance(reasoning, str) and reasoning.strip():
+        return reasoning
+    return ""
+
+
+def _iter_sse_lines(response: requests.Response) -> list[str]:
+    lines: list[str] = []
+    for raw_line in response.iter_lines(decode_unicode=True):
+        if raw_line is None:
+            continue
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("data:"):
+            line = line[5:].strip()
+        if line:
+            lines.append(line)
+    return lines
+
+
 def benchmark_model(
     chat_url: str,
     model: str,
@@ -110,15 +155,21 @@ def benchmark_model(
     request_timeout_sec: int = 2000,
     artifact_dir: Optional[Path] = None,
     extra_payload: Optional[Dict[str, Any]] = None,
+    reasoning_mode: str = "off",
+    enable_stream_metrics: bool = True,
 ) -> Dict[str, Any]:
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": max_tokens,
-        "stream": False,
+        "stream": bool(enable_stream_metrics),
     }
+    reasoning_payload = _reasoning_payload(reasoning_mode)
+    if reasoning_payload is not None:
+        payload["reasoning"] = reasoning_payload
     if extra_payload:
         payload.update(extra_payload)
+
     payload_path: Optional[Path] = None
     response_path: Optional[Path] = None
     if artifact_dir is not None:
@@ -134,99 +185,173 @@ def benchmark_model(
 
     memory_monitor = MemoryMonitor(pid=memory_pid, process_pattern=memory_pattern)
     memory_monitor.start()
-    start_time = time.time()
+    started_at = time.perf_counter()
+    response: Optional[requests.Response] = None
+
+    def _error_result(error: str, memory_gb: Optional[float]) -> Dict[str, Any]:
+        if response_path is not None:
+            _dump_json(
+                response_path,
+                {
+                    "error": error,
+                    "runtime": runtime,
+                    "model": model,
+                },
+            )
+        return {
+            "error": error,
+            "runtime": runtime,
+            "model": model,
+            "memory_gb": memory_gb,
+            "payload_path": _display_path(payload_path),
+            "response_path": _display_path(response_path),
+        }
+
     try:
-        response = requests.post(chat_url, json=payload, timeout=request_timeout_sec)
-        end_time = time.time()
+        response = requests.post(
+            chat_url,
+            json=payload,
+            timeout=request_timeout_sec,
+            stream=bool(payload.get("stream", False)),
+        )
     except requests.exceptions.Timeout:
         max_memory_gb = memory_monitor.stop()
-        if response_path is not None:
-            _dump_json(
-                response_path,
-                {
-                    "error": f"Request timeout ({request_timeout_sec}s)",
-                    "runtime": runtime,
-                    "model": model,
-                },
-            )
-        return {
-            "error": f"Request timeout ({request_timeout_sec}s)",
-            "runtime": runtime,
-            "model": model,
-            "memory_gb": max_memory_gb,
-            "payload_path": _display_path(payload_path),
-            "response_path": _display_path(response_path),
-        }
+        return _error_result(f"Request timeout ({request_timeout_sec}s)", max_memory_gb)
     except Exception as exc:  # noqa: BLE001
         max_memory_gb = memory_monitor.stop()
-        if response_path is not None:
-            _dump_json(
-                response_path,
-                {
-                    "error": str(exc),
-                    "runtime": runtime,
-                    "model": model,
-                },
-            )
-        return {
-            "error": str(exc),
-            "runtime": runtime,
-            "model": model,
-            "memory_gb": max_memory_gb,
-            "payload_path": _display_path(payload_path),
-            "response_path": _display_path(response_path),
-        }
-    max_memory_gb = memory_monitor.stop()
+        return _error_result(str(exc), max_memory_gb)
 
-    if response.status_code != 200:
-        if response_path is not None:
-            _dump_json(
-                response_path,
-                {
-                    "status_code": response.status_code,
-                    "body": response.text,
-                    "runtime": runtime,
-                    "model": model,
-                },
-            )
-        return {
-            "error": f"HTTP {response.status_code}: {response.text[:200]}",
-            "runtime": runtime,
-            "model": model,
-            "memory_gb": max_memory_gb,
-            "payload_path": _display_path(payload_path),
-            "response_path": _display_path(response_path),
-        }
+    first_token_at: Optional[float] = None
+    stream_mode = False
+    response_json: Dict[str, Any] = {}
+    usage: Dict[str, Any] = {}
+    perf: Dict[str, Any] = {}
+    response_text = ""
+    prompt_tokens = 0
+    completion_tokens = 0
+    total_tokens = 0
 
     try:
-        data = response.json()
-    except Exception as exc:  # noqa: BLE001
-        if response_path is not None:
-            _dump_json(
-                response_path,
-                {
-                    "status_code": response.status_code,
-                    "body": response.text,
+        if response.status_code != 200:
+            body_text = response.text
+            max_memory_gb = memory_monitor.stop()
+            if response_path is not None:
+                _dump_json(
+                    response_path,
+                    {
+                        "status_code": response.status_code,
+                        "body": body_text,
+                        "runtime": runtime,
+                        "model": model,
+                    },
+                )
+            return {
+                "error": f"HTTP {response.status_code}: {body_text[:200]}",
+                "runtime": runtime,
+                "model": model,
+                "memory_gb": max_memory_gb,
+                "payload_path": _display_path(payload_path),
+                "response_path": _display_path(response_path),
+            }
+
+        content_type = (response.headers.get("content-type") or "").lower()
+        if bool(payload.get("stream", False)) and "text/event-stream" in content_type:
+            stream_mode = True
+            sse_lines = _iter_sse_lines(response)
+            text_chunks: list[str] = []
+            reasoning_chunks: list[str] = []
+            last_chunk: Dict[str, Any] = {}
+            for line in sse_lines:
+                if line == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(line)
+                except Exception:  # noqa: BLE001
+                    continue
+                if not isinstance(chunk, dict):
+                    continue
+                last_chunk = chunk
+                chunk_usage = chunk.get("usage")
+                if isinstance(chunk_usage, dict):
+                    usage = chunk_usage
+                chunk_perf = chunk.get("perf")
+                if isinstance(chunk_perf, dict):
+                    perf.update(chunk_perf)
+                choices = chunk.get("choices")
+                if isinstance(choices, list) and choices:
+                    choice0 = choices[0] if isinstance(choices[0], dict) else {}
+                    delta = choice0.get("delta")
+                    if isinstance(delta, dict):
+                        delta_content = delta.get("content")
+                        if isinstance(delta_content, str):
+                            if delta_content and first_token_at is None:
+                                first_token_at = time.perf_counter()
+                            text_chunks.append(delta_content)
+                        delta_reasoning = delta.get("reasoning")
+                        if isinstance(delta_reasoning, str):
+                            if delta_reasoning and first_token_at is None:
+                                first_token_at = time.perf_counter()
+                            reasoning_chunks.append(delta_reasoning)
+                    message = choice0.get("message")
+                    message_text = _extract_text_from_message(message)
+                    if message_text and first_token_at is None:
+                        first_token_at = time.perf_counter()
+                    if message_text and not text_chunks and not reasoning_chunks:
+                        text_chunks.append(message_text)
+            response_text = "".join(text_chunks).strip()
+            if not response_text:
+                response_text = "".join(reasoning_chunks).strip()
+            response_json = {
+                "object": "chat.completion",
+                "choices": [{"message": {"role": "assistant", "content": response_text}}],
+                "usage": usage,
+                "perf": perf,
+                "stream_mode": True,
+                "last_chunk": last_chunk,
+            }
+        else:
+            try:
+                response_json = response.json()
+            except Exception as exc:  # noqa: BLE001
+                max_memory_gb = memory_monitor.stop()
+                if response_path is not None:
+                    _dump_json(
+                        response_path,
+                        {
+                            "status_code": response.status_code,
+                            "body": response.text,
+                            "error": f"Invalid JSON response: {exc}",
+                            "runtime": runtime,
+                            "model": model,
+                        },
+                    )
+                return {
                     "error": f"Invalid JSON response: {exc}",
                     "runtime": runtime,
                     "model": model,
-                },
-            )
-        return {
-            "error": f"Invalid JSON response: {exc}",
-            "runtime": runtime,
-            "model": model,
-            "memory_gb": max_memory_gb,
-            "payload_path": _display_path(payload_path),
-            "response_path": _display_path(response_path),
-        }
-    total_time = end_time - start_time
-    usage = data.get("usage", {})
-    perf = data.get("perf", {})
-    prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
-    completion_tokens = int(usage.get("completion_tokens", 0) or 0)
-    total_tokens = int(usage.get("total_tokens", 0) or 0)
-    response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    "memory_gb": max_memory_gb,
+                    "payload_path": _display_path(payload_path),
+                    "response_path": _display_path(response_path),
+                }
+            usage = response_json.get("usage", {}) if isinstance(response_json, dict) else {}
+            perf = response_json.get("perf", {}) if isinstance(response_json, dict) else {}
+            choices = response_json.get("choices", []) if isinstance(response_json, dict) else []
+            if isinstance(choices, list) and choices:
+                choice0 = choices[0] if isinstance(choices[0], dict) else {}
+                response_text = _extract_text_from_message(choice0.get("message"))
+            if response_text:
+                first_token_at = time.perf_counter()
+    finally:
+        max_memory_gb = memory_monitor.stop()
+        if response is not None:
+            response.close()
+
+    finished_at = time.perf_counter()
+    total_time = finished_at - started_at
+
+    prompt_tokens = int(usage.get("prompt_tokens", 0) or 0) if isinstance(usage, dict) else 0
+    completion_tokens = int(usage.get("completion_tokens", 0) or 0) if isinstance(usage, dict) else 0
+    total_tokens = int(usage.get("total_tokens", 0) or 0) if isinstance(usage, dict) else 0
 
     if prompt_tokens <= 0 and prompt:
         prompt_tokens = estimate_tokens(prompt)
@@ -236,11 +361,27 @@ def benchmark_model(
         total_tokens = prompt_tokens + completion_tokens
 
     tokens_per_second = completion_tokens / total_time if total_time > 0 else 0.0
-    prompt_tps = float(perf.get("prompt_tps", 0.0) or 0.0)
-    generation_tps = float(perf.get("generation_tps", 0.0) or 0.0)
-    ttft_sec = float(perf.get("ttft_sec", 0.0) or 0.0)
-    server_total_time_sec = float(perf.get("total_time_sec", 0.0) or 0.0)
-    server_peak_memory_gb = float(perf.get("peak_memory_gb", 0.0) or 0.0)
+
+    prompt_tps = float(perf.get("prompt_tps", 0.0) or 0.0) if isinstance(perf, dict) else 0.0
+    generation_tps = float(perf.get("generation_tps", 0.0) or 0.0) if isinstance(perf, dict) else 0.0
+    ttft_sec = float(perf.get("ttft_sec", 0.0) or 0.0) if isinstance(perf, dict) else 0.0
+    server_total_time_sec = float(perf.get("total_time_sec", 0.0) or 0.0) if isinstance(perf, dict) else 0.0
+    server_peak_memory_gb = float(perf.get("peak_memory_gb", 0.0) or 0.0) if isinstance(perf, dict) else 0.0
+
+    if ttft_sec <= 0.0:
+        ttft_sec = (
+            (first_token_at - started_at)
+            if first_token_at is not None
+            else total_time
+        )
+    if server_total_time_sec <= 0.0:
+        server_total_time_sec = total_time
+    if prompt_tps <= 0.0 and ttft_sec > 0:
+        prompt_tps = prompt_tokens / ttft_sec
+    decode_time = max(total_time - ttft_sec, 1e-9)
+    if generation_tps <= 0.0 and completion_tokens > 0 and decode_time > 0:
+        generation_tps = completion_tokens / decode_time
+
     reported_memory_gb = max_memory_gb
     if runtime in {"mlx", "mlx-optiq"} and server_peak_memory_gb > 0:
         reported_memory_gb = round(server_peak_memory_gb, 2)
@@ -251,7 +392,7 @@ def benchmark_model(
                 "status_code": response.status_code,
                 "runtime": runtime,
                 "model": model,
-                "body": data,
+                "body": response_json,
             },
         )
 
@@ -271,6 +412,7 @@ def benchmark_model(
         "server_total_time_sec": round(server_total_time_sec, 3),
         "memory_gb": reported_memory_gb,
         "response_text": response_text,
+        "stream_metrics_mode": bool(stream_mode),
         "payload_path": _display_path(payload_path),
         "response_path": _display_path(response_path),
     }

@@ -11,6 +11,15 @@ from typing import Any, Dict, List, Set
 import requests
 
 
+def _reasoning_payload(reasoning_mode: str) -> dict[str, str] | None:
+    mode = str(reasoning_mode or "off").strip().lower()
+    if mode == "off":
+        return {"effort": "none"}
+    if mode == "on":
+        return {"effort": "low"}
+    return None
+
+
 def pids_for_listen_port(port: int) -> Set[int]:
     try:
         result = subprocess.run(
@@ -203,19 +212,42 @@ def stop_managed_process(proc: subprocess.Popen) -> None:
         log_handle.close()
 
 
-def warmup_model(chat_url: str, model: str) -> None:
+def warmup_model(chat_url: str, model: str, reasoning_mode: str = "off") -> Dict[str, Any]:
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": "Hi"}],
         "max_tokens": 5,
         "stream": False,
     }
+    reasoning_payload = _reasoning_payload(reasoning_mode)
+    if reasoning_payload is not None:
+        payload["reasoning"] = reasoning_payload
+
     print(f"Warming up {model}...", file=sys.stderr)
+    started_at = time.perf_counter()
     try:
         response = requests.post(chat_url, json=payload, timeout=180)
+        warmup_sec = time.perf_counter() - started_at
         if response.status_code == 200:
             print("✓ Model warmed up", file=sys.stderr)
+            return {
+                "success": True,
+                "warmup_sec": round(warmup_sec, 4),
+                "status_code": response.status_code,
+            }
         else:
             print(f"⚠ Warmup returned HTTP {response.status_code}", file=sys.stderr)
+            return {
+                "success": False,
+                "warmup_sec": round(warmup_sec, 4),
+                "status_code": response.status_code,
+                "error": f"HTTP {response.status_code}",
+            }
     except Exception as exc:  # noqa: BLE001
+        warmup_sec = time.perf_counter() - started_at
         print(f"⚠ Warmup failed: {exc}", file=sys.stderr)
+        return {
+            "success": False,
+            "warmup_sec": round(warmup_sec, 4),
+            "error": str(exc),
+        }
