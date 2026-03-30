@@ -10,9 +10,11 @@ from src.bench.runner.stats import (
     avg,
     ci95_half_width_for_rate,
     row_peak_memory,
+    row_prefill_sec,
     row_prompt_tokens,
     row_retrieval_exact,
     row_retrieval_score,
+    row_server_prompt_eval_sec,
     row_throughput,
     row_total_time,
     row_ttft,
@@ -27,6 +29,16 @@ def display_path(path: Path, root_dir: Path) -> str:
         return str(path)
 
 
+def _is_benchmark_row(row: Dict[str, Any]) -> bool:
+    return bool(row.get("benchmark_included", True))
+
+
+def _context_label_for_row(row: Dict[str, Any], runtime: str) -> str:
+    context_tokens = row.get("context_tokens_target")
+    default_context_k = default_context_k_for_runtime(runtime)
+    return f"{int(context_tokens / 1000)}k" if isinstance(context_tokens, int) else f"{default_context_k}k"
+
+
 def _is_cache_enabled(row: Dict[str, Any]) -> bool:
     cache = row.get("cache")
     if not isinstance(cache, dict):
@@ -35,9 +47,29 @@ def _is_cache_enabled(row: Dict[str, Any]) -> bool:
     return mode != "none"
 
 
-def _summary_prompt_tps(rows: list[Dict[str, Any]]) -> float:
+def _weighted_prompt_tps(rows: list[Dict[str, Any]]) -> float:
+    prompt_tokens_total = 0.0
+    prompt_time_total = 0.0
+    for row in rows:
+        prompt_tps = row_throughput(row, "prompt_tps")
+        prompt_tokens = row_prompt_tokens(row)
+        if prompt_tps > 0 and prompt_tokens > 0:
+            prompt_tokens_total += prompt_tokens
+            prompt_time_total += (prompt_tokens / prompt_tps)
+    if prompt_tokens_total > 0 and prompt_time_total > 0:
+        return prompt_tokens_total / prompt_time_total
+    return 0.0
+
+
+def _summary_prompt_tps(rows: list[Dict[str, Any]], prime_rows: list[Dict[str, Any]]) -> float:
     if not rows:
         return 0.0
+
+    # Cache-enabled runs: prompt tps comes from dedicated cache-prime run0.
+    if prime_rows:
+        prime_weighted = _weighted_prompt_tps(prime_rows)
+        if prime_weighted > 0:
+            return prime_weighted
 
     # With cache enabled, only the first successful sample represents full prompt work.
     if any(_is_cache_enabled(row) for row in rows):
@@ -48,17 +80,9 @@ def _summary_prompt_tps(rows: list[Dict[str, Any]]) -> float:
         return 0.0
 
     # Without cache, use weighted aggregation: sum(prompt_tokens)/sum(prompt_time).
-    prompt_tokens_total = 0.0
-    prompt_time_total = 0.0
-    for row in rows:
-        prompt_tps = row_throughput(row, "prompt_tps")
-        prompt_tokens = row_prompt_tokens(row)
-        if prompt_tps > 0 and prompt_tokens > 0:
-            prompt_tokens_total += prompt_tokens
-            prompt_time_total += (prompt_tokens / prompt_tps)
-
-    if prompt_tokens_total > 0 and prompt_time_total > 0:
-        return prompt_tokens_total / prompt_time_total
+    weighted = _weighted_prompt_tps(rows)
+    if weighted > 0:
+        return weighted
 
     return avg([row_throughput(row, "prompt_tps") for row in rows])
 
@@ -68,11 +92,23 @@ def _summary_ttft(rows: list[Dict[str, Any]]) -> float:
     return avg(ttft_values)
 
 
+def _summary_prefill_sec(rows: list[Dict[str, Any]], prime_rows: list[Dict[str, Any]]) -> float:
+    if prime_rows:
+        return avg([row_prefill_sec(row) for row in prime_rows if row_prefill_sec(row) > 0])
+
+    prompt_eval_values = [row_server_prompt_eval_sec(row) for row in rows if row_server_prompt_eval_sec(row) > 0]
+    if prompt_eval_values:
+        return avg(prompt_eval_values)
+    return 0.0
+
+
 def runtime_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> list[Dict[str, Any]]:
     rows: list[Dict[str, Any]] = []
-    successful = [r for r in results if r.get("success")]
+    successful_benchmark = [r for r in results if r.get("success") and _is_benchmark_row(r)]
+    successful_prime = [r for r in results if r.get("success") and not _is_benchmark_row(r)]
     for runtime in runtimes:
-        runtime_results = [r for r in successful if r.get("runtime") == runtime]
+        runtime_results = [r for r in successful_benchmark if r.get("runtime") == runtime]
+        runtime_prime_results = [r for r in successful_prime if r.get("runtime") == runtime]
         if not runtime_results:
             rows.append(
                 {
@@ -82,6 +118,7 @@ def runtime_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> 
                     "avg_tokens_per_second": 0.0,
                     "avg_prompt_tps": 0.0,
                     "avg_generation_tps": 0.0,
+                    "avg_prefill_sec": 0.0,
                     "avg_ttft_sec": 0.0,
                     "avg_memory_gb": 0.0,
                     "avg_retrieval_score_float": 0.0,
@@ -107,11 +144,12 @@ def runtime_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> 
                     avg([row_throughput(r, "tokens_per_second") for r in runtime_results]),
                     3,
                 ),
-                "avg_prompt_tps": round(_summary_prompt_tps(runtime_results), 3),
+                "avg_prompt_tps": round(_summary_prompt_tps(runtime_results, runtime_prime_results), 3),
                 "avg_generation_tps": round(
                     avg([row_throughput(r, "generation_tps") for r in runtime_results]),
                     3,
                 ),
+                "avg_prefill_sec": round(_summary_prefill_sec(runtime_results, runtime_prime_results), 3),
                 "avg_ttft_sec": round(_summary_ttft(runtime_results), 3),
                 "avg_memory_gb": round(avg([row_peak_memory(r) for r in runtime_results]), 3),
                 "avg_retrieval_score_float": round(avg(retrieval_scores), 3),
@@ -124,17 +162,18 @@ def runtime_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> 
 
 def runtime_context_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> list[Dict[str, Any]]:
     rows: list[Dict[str, Any]] = []
-    successful = [r for r in results if r.get("success")]
+    successful_benchmark = [r for r in results if r.get("success") and _is_benchmark_row(r)]
+    successful_prime = [r for r in results if r.get("success") and not _is_benchmark_row(r)]
     for runtime in runtimes:
-        runtime_results = [r for r in successful if r.get("runtime") == runtime]
+        runtime_results = [r for r in successful_benchmark if r.get("runtime") == runtime]
+        runtime_prime_results = [r for r in successful_prime if r.get("runtime") == runtime]
         context_groups: Dict[str, list[Dict[str, Any]]] = {}
         for row in runtime_results:
-            context_tokens = row.get("context_tokens_target")
-            default_context_k = default_context_k_for_runtime(runtime)
-            label = f"{int(context_tokens / 1000)}k" if isinstance(context_tokens, int) else f"{default_context_k}k"
+            label = _context_label_for_row(row, runtime)
             context_groups.setdefault(label, []).append(row)
 
         for context_label, group in sorted(context_groups.items(), key=lambda item: item[0]):
+            prime_group = [r for r in runtime_prime_results if _context_label_for_row(r, runtime) == context_label]
             retrieval_rows = [r for r in group if row_retrieval_score(r) is not None]
             retrieval_scores = [float(row_retrieval_score(r) or 0.0) for r in retrieval_rows]
             retrieval_exact_rate = avg(
@@ -152,11 +191,12 @@ def runtime_context_summary_rows(results: list[Dict[str, Any]], runtimes: list[s
                         avg([row_throughput(r, "tokens_per_second") for r in group]),
                         3,
                     ),
-                    "avg_prompt_tps": round(_summary_prompt_tps(group), 3),
+                    "avg_prompt_tps": round(_summary_prompt_tps(group, prime_group), 3),
                     "avg_generation_tps": round(
                         avg([row_throughput(r, "generation_tps") for r in group]),
                         3,
                     ),
+                    "avg_prefill_sec": round(_summary_prefill_sec(group, prime_group), 3),
                     "avg_ttft_sec": round(_summary_ttft(group), 3),
                     "avg_memory_gb": round(avg([row_peak_memory(r) for r in group]), 3),
                     "avg_retrieval_score_float": round(avg(retrieval_scores), 3),
@@ -182,8 +222,12 @@ def write_summary_reports(
     generated_at = datetime.now(timezone.utc).isoformat()
     runtime_rows = runtime_summary_rows(results, runtimes)
     runtime_context_rows = runtime_context_summary_rows(results, runtimes)
-    success_count = sum(1 for r in results if r.get("success"))
-    failure_count = len(results) - success_count
+    benchmark_results = [r for r in results if _is_benchmark_row(r)]
+    prime_results = [r for r in results if not _is_benchmark_row(r)]
+    success_count = sum(1 for r in benchmark_results if r.get("success"))
+    failure_count = len(benchmark_results) - success_count
+    prime_success_count = sum(1 for r in prime_results if r.get("success"))
+    prime_failure_count = len(prime_results) - prime_success_count
 
     contexts_k_raw = getattr(args, "contexts_k", None)
     if contexts_k_raw:
@@ -237,9 +281,12 @@ def write_summary_reports(
             "artifacts_dir": display_path(artifact_dir, root_dir),
         },
         "counts": {
-            "total": len(results),
+            "total": len(benchmark_results),
             "success": success_count,
             "failure": failure_count,
+            "cache_prime_total": len(prime_results),
+            "cache_prime_success": prime_success_count,
+            "cache_prime_failure": prime_failure_count,
         },
         "setup_metrics": setup_metrics,
         "runtime_summary": runtime_rows,
@@ -300,9 +347,12 @@ def write_summary_reports(
     lines.append("")
     lines.append("## Counts")
     lines.append("")
-    lines.append(f"- `total`: `{len(results)}`")
+    lines.append(f"- `total`: `{len(benchmark_results)}`")
     lines.append(f"- `success`: `{success_count}`")
     lines.append(f"- `failure`: `{failure_count}`")
+    lines.append(f"- `cache_prime_total`: `{len(prime_results)}`")
+    lines.append(f"- `cache_prime_success`: `{prime_success_count}`")
+    lines.append(f"- `cache_prime_failure`: `{prime_failure_count}`")
 
     lines.append("")
     lines.append("## Setup Metrics")
@@ -329,14 +379,14 @@ def write_summary_reports(
     lines.append("## Runtime Summary")
     lines.append("")
     lines.append(
-        "| Runtime | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |"
+        "| Runtime | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg Prefill (s) | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |"
     )
-    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in runtime_rows:
         lines.append(
             f"| {row['runtime']} | {row['count']} | {row['avg_total_time']:.3f} | "
             f"{row['avg_tokens_per_second']:.3f} | {row['avg_prompt_tps']:.3f} | "
-            f"{row['avg_generation_tps']:.3f} | {row['avg_ttft_sec']:.3f} | "
+            f"{row['avg_generation_tps']:.3f} | {row['avg_prefill_sec']:.3f} | {row['avg_ttft_sec']:.3f} | "
             f"{row['avg_memory_gb']:.3f} | {row['avg_retrieval_score_float']:.3f} | "
             f"{row['retrieval_exact_rate']:.3f} | {row['retrieval_exact_ci95_half_width']:.3f} |"
         )
@@ -345,14 +395,14 @@ def write_summary_reports(
     lines.append("## Runtime + Context Summary")
     lines.append("")
     lines.append(
-        "| Runtime | Context | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |"
+        "| Runtime | Context | Count | Avg time (s) | Avg tok/s | Avg prompt tps | Avg gen tps | Avg Prefill (s) | Avg TTFT (s) | Avg Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |"
     )
-    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in runtime_context_rows:
         lines.append(
             f"| {row['runtime']} | {row['context']} | {row['count']} | {row['avg_total_time']:.3f} | "
             f"{row['avg_tokens_per_second']:.3f} | {row['avg_prompt_tps']:.3f} | "
-            f"{row['avg_generation_tps']:.3f} | {row['avg_ttft_sec']:.3f} | "
+            f"{row['avg_generation_tps']:.3f} | {row['avg_prefill_sec']:.3f} | {row['avg_ttft_sec']:.3f} | "
             f"{row['avg_memory_gb']:.3f} | {row['avg_retrieval_score_float']:.3f} | "
             f"{row['retrieval_exact_rate']:.3f} | {row['retrieval_exact_ci95_half_width']:.3f} |"
         )
@@ -361,21 +411,21 @@ def write_summary_reports(
     lines.append("## Run Results")
     lines.append("")
     lines.append(
-        "| Runtime | Model | Case | Context | Time (s) | Tok/s | Prompt tps | Gen tps | TTFT (s) | Peak RAM (GB) | Retrieval score | Retrieval exact | Cache used | Status |"
+        "| Runtime | Model | Phase | Case | Context | Time (s) | Tok/s | Prompt tps | Gen tps | Prefill (s) | TTFT (s) | Peak RAM (GB) | Retrieval score | Retrieval exact | Cache used | Status |"
     )
-    lines.append("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|")
+    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|")
 
     for row in results_sorted:
-        context_tokens = row.get("context_tokens_target")
-        default_context_k = default_context_k_for_runtime(str(row.get("runtime", "")))
-        context_label = f"{int(context_tokens / 1000)}k" if isinstance(context_tokens, int) else f"{default_context_k}k"
+        runtime = str(row.get("runtime", ""))
+        context_label = _context_label_for_row(row, runtime)
         status = "ok" if row.get("success") else f"error: {str(row.get('error', 'unknown'))[:80]}"
         cache = row.get("cache") if isinstance(row.get("cache"), dict) else {}
+        phase = str(row.get("phase") or ("benchmark" if _is_benchmark_row(row) else "cache-prime"))
         lines.append(
-            f"| {row.get('runtime', '-')} | {row.get('model', '-')} | {row.get('case_name', '-')} | "
+            f"| {runtime or '-'} | {row.get('model', '-')} | {phase} | {row.get('case_name', '-')} | "
             f"{context_label} | {row_total_time(row):.2f} | {row_throughput(row, 'tokens_per_second'):.2f} | "
             f"{row_throughput(row, 'prompt_tps'):.2f} | {row_throughput(row, 'generation_tps'):.2f} | "
-            f"{row_ttft(row):.2f} | {row_peak_memory(row):.2f} | "
+            f"{row_prefill_sec(row):.2f} | {row_ttft(row):.2f} | {row_peak_memory(row):.2f} | "
             f"{to_float(row_retrieval_score(row) or 0.0):.3f} | {bool(row_retrieval_exact(row))} | "
             f"{bool(cache.get('used', False))} | {status} |"
         )

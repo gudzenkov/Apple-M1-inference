@@ -89,7 +89,8 @@ def run_benchmark(args: Any) -> int:
     print(f"✅ Summary JSON: {display_path(summary_json_path, ROOT_DIR)}", file=sys.stderr)
     print(f"✅ Summary MD: {display_path(summary_md_path, ROOT_DIR)}", file=sys.stderr)
 
-    successful = [r for r in results if r.get("success")]
+    benchmark_results = [r for r in results if bool(r.get("benchmark_included", True))]
+    successful = [r for r in benchmark_results if r.get("success")]
     if successful:
         print("\n📊 Summary:", file=sys.stderr)
         for runtime in runtimes:
@@ -108,7 +109,7 @@ def run_benchmark(args: Any) -> int:
                 file=sys.stderr,
             )
 
-    if not results:
+    if not benchmark_results:
         setup_errors = [
             str(row.get("setup_error", "")).strip()
             for row in setup_metrics

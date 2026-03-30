@@ -51,6 +51,27 @@ def row_ttft(row: Dict[str, Any]) -> float:
     return 0.0
 
 
+def row_server_prompt_eval_sec(row: Dict[str, Any]) -> float:
+    timing = row.get("timing")
+    if isinstance(timing, dict):
+        server = timing.get("server")
+        if isinstance(server, dict):
+            value = to_float(server.get("prompt_eval_sec"))
+            if value > 0:
+                return value
+    return 0.0
+
+
+def row_prefill_sec(row: Dict[str, Any]) -> float:
+    phase = str(row.get("phase") or "").strip().lower()
+    if phase == "cache-prime":
+        return row_total_time(row)
+    prompt_eval_sec = row_server_prompt_eval_sec(row)
+    if prompt_eval_sec > 0:
+        return prompt_eval_sec
+    return 0.0
+
+
 def row_prompt_tokens(row: Dict[str, Any]) -> float:
     usage = row.get("usage")
     if isinstance(usage, dict):

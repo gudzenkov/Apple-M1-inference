@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 import time
 from pathlib import Path
@@ -12,6 +13,60 @@ from src.bench.runner.naming import run_param
 from src.bench.runner.retrieval import annotate_retrieval
 from src.bench.runner.stats import row_throughput, row_total_time
 from src.shared.models import get_default_model_id
+
+
+def _case_meta_from_case(case: Dict[str, Any]) -> Dict[str, Any]:
+    case_meta: Dict[str, Any] = {
+        "dataset": case.get("dataset"),
+        "case_name": case.get("case_name"),
+    }
+    for key in (
+        "context_tokens_target",
+        "payload_source",
+        "needle_key",
+        "needle_value",
+        "needle_position",
+        "prompt_cache_group",
+    ):
+        value = case.get(key)
+        if value is not None:
+            case_meta[key] = value
+    return case_meta
+
+
+def _prime_case_name(case_name: str) -> str:
+    if not case_name:
+        return "cache-prime-0"
+    if re.search(r"-\d+$", case_name):
+        return re.sub(r"-\d+$", "-0", case_name)
+    return f"{case_name}-0"
+
+
+def _cache_prime_key(case: Dict[str, Any]) -> str:
+    prompt_cache_group = case.get("prompt_cache_group")
+    if isinstance(prompt_cache_group, str) and prompt_cache_group.strip():
+        return prompt_cache_group.strip()
+    dataset = str(case.get("dataset") or "dataset")
+    context = case.get("context_tokens_target")
+    context_part = str(context) if isinstance(context, int) and context > 0 else "default"
+    return f"{dataset}:{context_part}"
+
+
+def _build_cache_prime_cases(cases: list[Dict[str, Any]], cache_mode: str) -> list[Dict[str, Any]]:
+    if cache_mode == "none":
+        return []
+    prime_cases: list[Dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    for case in cases:
+        key = _cache_prime_key(case)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        prime_case = dict(case)
+        prime_case["case_name"] = _prime_case_name(str(case.get("case_name") or "cache-prime"))
+        prime_case["phase"] = "cache-prime"
+        prime_cases.append(prime_case)
+    return prime_cases
 
 
 def run_runtime_matrix(
@@ -83,6 +138,40 @@ def run_runtime_matrix(
                     )
                     continue
 
+                prime_cases = _build_cache_prime_cases(cases, cache_mode=spec.cache_mode)
+                for prime_case in prime_cases:
+                    if state.fatal_error:
+                        print(
+                            f"Skipping cache priming for {runtime}/{spec.model}: {state.fatal_error}",
+                            file=sys.stderr,
+                        )
+                        break
+                    print(f"Priming cache {runtime}/{spec.model} [{prime_case['case_name']}]...", file=sys.stderr)
+                    run_dir = experiment_dir / run_param(
+                        runtime,
+                        spec.model,
+                        prime_case,
+                        default_context_k=default_context_k,
+                    )
+                    prime_result = handler.run_case(
+                        spec=spec,
+                        args=args,
+                        case=prime_case,
+                        run_dir=run_dir,
+                        state=state,
+                    )
+                    prime_result.update(_case_meta_from_case(prime_case))
+                    prime_result["phase"] = "cache-prime"
+                    prime_result["benchmark_included"] = False
+                    prime_result.pop("response_text", None)
+                    results.append(prime_result)
+                    if prime_result.get("success"):
+                        tps = row_throughput(prime_result, "prompt_tps")
+                        total = row_total_time(prime_result)
+                        print(f"  ↺ cache prime prompt {tps:.2f} tps in {total:.2f}s", file=sys.stderr)
+                    else:
+                        print(f"  ✗ cache prime failed: {prime_result.get('error', 'Unknown error')}", file=sys.stderr)
+
                 for case in cases:
                     if state.fatal_error:
                         print(f"Skipping remaining cases for {runtime}/{spec.model}: {state.fatal_error}", file=sys.stderr)
@@ -103,25 +192,13 @@ def run_runtime_matrix(
                         state=state,
                     )
 
-                    case_meta: Dict[str, Any] = {
-                        "dataset": case.get("dataset"),
-                        "case_name": case.get("case_name"),
-                    }
-                    for key in (
-                        "context_tokens_target",
-                        "payload_source",
-                        "needle_key",
-                        "needle_value",
-                        "needle_position",
-                        "prompt_cache_group",
-                    ):
-                        value = case.get(key)
-                        if value is not None:
-                            case_meta[key] = value
+                    case_meta = _case_meta_from_case(case)
 
                     annotate_retrieval(result, case_meta.get("needle_value"))
 
                     result.update(case_meta)
+                    result["phase"] = "benchmark"
+                    result["benchmark_included"] = True
                     result.pop("response_text", None)
                     results.append(result)
 
