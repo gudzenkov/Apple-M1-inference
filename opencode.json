@@ -28,18 +28,13 @@
           "supportsTools": true,
           "toolChoice": "auto"
         },
-        "SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL": {
-          "name": "Qwen3-Coder-30B (Baseline, Tools)",
-          "supportsTools": true,
-          "toolChoice": "auto"
-        },
         "sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M": {
           "name": "Qwen3.5-Opus-27B (Thinking+Tools)",
           "supportsTools": true,
           "toolChoice": "auto"
         },
-        "ukjin/Qwen3-30B-A3B-Thinking-2507-Deepseek-v3.1-Distill": {
-          "name": "Qwen3-Deepseek-30B (Thinking+Tools)",
+        "RogerBen/qwen3.5-35b-opus-distill": {
+          "name": "Qwen3.5 35B A3B (Thinking+Tools)",
           "supportsTools": true,
           "toolChoice": "auto"
         }

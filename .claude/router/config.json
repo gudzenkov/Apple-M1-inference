@@ -10,13 +10,11 @@
       "api_base_url": "http://localhost:11434/v1/chat/completions",
       "api_key": "ollama",
       "models": [
-        "SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL",
-        "ukjin/Qwen3-30B-A3B-Thinking-2507-Deepseek-v3.1-Distill:4b",
         "sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M",
         "qwen3.5:9b"
       ],
       "transformer": {
-        "SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL": {
+        "sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M": {
           "use": [
             "enhancetool"
           ]

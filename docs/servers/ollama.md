@@ -16,9 +16,7 @@ You can also run `ollama serve` in a shell if you prefer manual control. Ollama 
 - Pull the curated models:
   ```bash
   ollama pull qwen3.5:9b
-  ollama pull SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL
   ollama pull sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M
-  ollama pull ukjin/Qwen3-30B-A3B-Thinking-2507-Deepseek-v3.1-Distill
   ```
 - List, inspect, or delete with `ollama list`, `ollama show <model>`, `ollama rm <model>`.
 - Use `scripts/ollama-build-models.sh` to create 256k-context Modelfiles and `ollama create` wrappers for every configured Ollama model.

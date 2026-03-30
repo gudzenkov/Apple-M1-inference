@@ -10,7 +10,7 @@ help:
     @echo "Just commands:"
     @echo "  Optional env (.env is auto-loaded):"
     @echo "    HUGGINGFACE_MODEL=<hf-repo-id-or-alias>"
-    @echo "    aliases: optiq/optiq-9b, opus/opus-27b, claw/claw-27b, coder/coder-30b"
+    @echo "    aliases: optiq/optiq-9b, opus/opus-27b, claw/claw-27b"
     @echo "  just mlx <start|stop|status> [model]"
     @echo "  just optiq <start|stop|status> [model]"
     @echo "  just stop-all"

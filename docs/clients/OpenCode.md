@@ -33,8 +33,8 @@ Add this provider block to `~/.config/opencode/opencode.json` if you want an exp
         "mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit": {
           "name": "Qwen3.5-27B Opus Distilled"
         },
-        "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit": {
-          "name": "Qwen3-Coder-30B-A3B"
+        "mlx-community/Qwen3.5-35B-A3B-4bit": {
+          "name": "Qwen3.5-35B-A3B"
         }
       }
     }
@@ -57,7 +57,7 @@ Add this provider block to `~/.config/opencode/opencode.json` if you want an exp
 
 ### Ollama Local
 - **Base URL:** `http://localhost:11434/v1`.
-- **Models:** `qwen3.5:9b`, `SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL`, `sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M`, and `ukjin/Qwen3-30B-A3B-Thinking-2507-Deepseek-v3.1-Distill`.
+- **Models:** `qwen3.5:9b`, `RogerBen/qwen3.5-35b-opus-distill`, `sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M`.
 - **Tool support:** All configured models have `supportsTools` enabled with `toolChoice: auto`, matching the expectation of agentic workflows.
 
 ## Verifying the connection
@@ -71,5 +71,4 @@ Add this provider block to `~/.config/opencode/opencode.json` if you want an exp
 - Keep the MLX and Ollama servers running in the background; OpenCode will attempt to connect each time you switch models.
 - If you create new Ollama models (e.g., `*-256k`), update `opencode.json` accordingly and restart OpenCode.
 - Use at least 16K context for agentic workflows.
-- Qwen3-Coder models work best for code generation.
 - Set temperature to `0.2-0.7` for balanced creativity/accuracy.

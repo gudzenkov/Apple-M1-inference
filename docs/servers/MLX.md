@@ -39,7 +39,7 @@ export HOST=0.0.0.0
 ```
 
 `HUGGINGFACE_MODEL` accepts a configured alias or full model ID from `configs/models.yaml`.
-Common aliases: `optiq`, `opus`, `claw`, `coder`.
+Common aliases: `optiq`, `opus`, `claw`.
 
 Model card (default alias `optiq`): [mlx-community/Qwen3.5-9B-OptiQ-4bit](https://huggingface.co/mlx-community/Qwen3.5-9B-OptiQ-4bit)
 
