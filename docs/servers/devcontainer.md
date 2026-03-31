@@ -74,23 +74,29 @@ curl -s http://host.docker.internal:11434/v1/models
 
 One of these should return the model list from the runtime you started on host.
 
-## 5. OrbStack-only shortcut (optional)
+## 5. OrbStack
 
-OrbStack supports host networking for containers (`--net host`). With that mode, container `localhost` can talk to host `localhost` directly.
+#### Bridge networking
+Containers in OrbStack have domain names at `container-name.orb.local` or `service.project.orb.local` for Compose with zero configuration or port numbers required.
 
-Example `devcontainer.json` override for Orb only:
+You can also use the `host.docker.internal` domain to connect to a server running on Mac.
 
-```json
-{
-  "runArgs": ["--network=host"],
-  "containerEnv": {
-    "LLM_BASE_URL": "http://localhost:8080/v1",
-    "LLM_API_KEY": "local"
-  }
-}
-```
+#### Host networking
+OrbStack supports host networking, allowing you to avoid having to deal with port forwarding.
+Host networking, or `--net host`, allows containers to inherit the host's network namespace instead of being an independent host on a bridge network
+`localhost` also works in the other direction, so you can connect directly to servers running on macOS instead of using `host.docker.internal`
 
-Do not use this as a cross-provider default. `host.docker.internal` is the safest shared path across OrbStack and Docker Desktop.
+## 6. VS Code Dev Containers caveat
+
+Limitation:
+- VS Code Dev Containers uses internal port forwarding for `vscode-server`.
+- With host networking, forwarded container localhost ports can collide with host localhost routing.
+- This can trigger repeated forwarding loops in logs (for example `Port forwarding ... > 44527 > 44527`).
+
+Recommended default for VS Code Dev Containers:
+- Keep default container networking (no host network mode).
+- Use `host.docker.internal` for host services from inside container.
+- Keep `LLM_BASE_URL` as `http://host.docker.internal:<port>/v1`.
 
 ## Troubleshooting
 
@@ -103,6 +109,9 @@ Do not use this as a cross-provider default. `host.docker.internal` is the safes
 - DNS issue for `host.docker.internal`:
   - You are probably not on OrbStack/Docker Desktop VM networking path.
   - Add explicit host mapping only if needed by your setup.
+- Repeating `Port forwarding ... > 44527 > 44527` logs in Dev Containers:
+  - Check `devcontainer.json` and remove `runArgs: ["--network=host"]`.
+  - Rebuild/reopen container after config change.
 
 ## References
 
