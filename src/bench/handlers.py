@@ -162,6 +162,7 @@ class MlxRuntimeHandler(RuntimeHandler):
         extra_payload: Optional[Dict[str, Any]] = None
         used_prompt_cache = False
         cache_id: Optional[str] = None
+        prefill_sec: Optional[float] = None
 
         if spec.cache_mode == "prefill" and spec.reasoning_effective == "off":
             prompt_prefix = case.get("prompt_prefix")
@@ -183,6 +184,7 @@ class MlxRuntimeHandler(RuntimeHandler):
                     )
                     if prefill.get("success"):
                         state.cache_ids.add(cache_id)
+                        prefill_sec = float(prefill.get("prefill_sec", 0.0) or 0.0)
                     else:
                         prefill_error = str(prefill.get("error", "unknown"))
                         state.fatal_error = (
@@ -229,7 +231,7 @@ class MlxRuntimeHandler(RuntimeHandler):
             "source": spec.cache_source,
         }
 
-        return benchmark_openai_compat(
+        result = benchmark_openai_compat(
             chat_url=spec.chat_url,
             model=spec.model,
             prompt=prompt_text,
@@ -245,6 +247,23 @@ class MlxRuntimeHandler(RuntimeHandler):
             cache=cache,
             stream_enabled=spec.stream_enabled,
         )
+        if prefill_sec and prefill_sec > 0:
+            timing = result.setdefault("timing", {})
+            if not isinstance(timing, dict):
+                timing = {}
+                result["timing"] = timing
+            cache_timing = timing.setdefault("cache", {})
+            if not isinstance(cache_timing, dict):
+                cache_timing = {}
+                timing["cache"] = cache_timing
+            cache_timing["prefill_sec"] = round(prefill_sec, 4)
+
+            sources = result.setdefault("sources", {})
+            if not isinstance(sources, dict):
+                sources = {}
+                result["sources"] = sources
+            sources["timing.cache.prefill_sec"] = "client_derived"
+        return result
 
     def teardown_model(self, *, spec: ComposedBenchmarkSpec, state: ModelRunState) -> None:
         try:
