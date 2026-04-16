@@ -1,0 +1,462 @@
+{
+  "generated_at": "2026-04-16T10:44:23.692552+00:00",
+  "params": {
+    "dataset": "long",
+    "contexts_k": [
+      64
+    ],
+    "runtime": "mlx",
+    "runtimes_resolved": [
+      "mlx"
+    ],
+    "model": "mlx-community/Qwen3.5-9B-4bit",
+    "all_models": false,
+    "samples": 3,
+    "max_tokens": 100,
+    "request_timeout_sec": null,
+    "server_start_timeout_sec": null,
+    "dataset_file": "dataset/turboquant_2504_19874v1.md",
+    "prompt_mode": false,
+    "skip_warmup": false,
+    "reasoning_mode": "off",
+    "cache_mode": "prefill",
+    "stream": "on",
+    "transport": "auto"
+  },
+  "files": {
+    "results_jsonl": "/tmp/bench-rerun-mlx-64k-prefill-fixed.jsonl",
+    "artifacts_dir": "data/benchmark/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z"
+  },
+  "counts": {
+    "total": 3,
+    "success": 3,
+    "failure": 0,
+    "cache_prime_total": 1,
+    "cache_prime_success": 1,
+    "cache_prime_failure": 0
+  },
+  "setup_metrics": [
+    {
+      "runtime": "mlx",
+      "model": "mlx-community/Qwen3.5-9B-4bit",
+      "model_key": "mlx-qwen3.5-9b-q4",
+      "case_build_sec": 4.0734,
+      "download_or_check_sec": 0.0,
+      "server_start_sec": 3.0357,
+      "warmup_sec": 0.6351,
+      "warmup_success": true,
+      "warmup_status_code": 200,
+      "reasoning_mode": "off",
+      "cache_mode": "prefill",
+      "transport": "openai-compat",
+      "stream": true,
+      "reasoning_supported": true,
+      "reasoning_format": "qwen"
+    }
+  ],
+  "runtime_summary": [
+    {
+      "runtime": "mlx",
+      "count": 3,
+      "avg_total_time": 5.183,
+      "avg_tokens_per_second": 24.74,
+      "avg_prompt_tps": 96.536,
+      "avg_generation_tps": 29.255,
+      "avg_prefill_sec": 317.255,
+      "avg_ttft_sec": 0.737,
+      "avg_memory_gb": 12.943,
+      "avg_retrieval_score_float": 1.0,
+      "retrieval_exact_rate": 1.0,
+      "retrieval_exact_ci95_half_width": 0.0
+    }
+  ],
+  "runtime_context_summary": [
+    {
+      "runtime": "mlx",
+      "context": "64k",
+      "count": 3,
+      "avg_total_time": 5.183,
+      "avg_tokens_per_second": 24.74,
+      "avg_prompt_tps": 96.536,
+      "avg_generation_tps": 29.255,
+      "avg_prefill_sec": 317.255,
+      "avg_ttft_sec": 0.737,
+      "avg_memory_gb": 12.943,
+      "avg_retrieval_score_float": 1.0,
+      "retrieval_exact_rate": 1.0,
+      "retrieval_exact_ci95_half_width": 0.0
+    }
+  ],
+  "results": [
+    {
+      "success": true,
+      "runtime": "mlx",
+      "model": "mlx-community/Qwen3.5-9B-4bit",
+      "timestamp": "2026-04-16T10:44:06.946302+00:00",
+      "timing": {
+        "client": {
+          "total_time_sec": 4.7253,
+          "ttft_sec": null
+        },
+        "server": {
+          "total_time_sec": 4.6676,
+          "ttft_sec": 0.6553
+        },
+        "cache": {
+          "prefill_sec": 317.2549
+        }
+      },
+      "usage": {
+        "server": {
+          "prompt_tokens": 46,
+          "completion_tokens": 128,
+          "total_tokens": 174
+        },
+        "normalized": {
+          "prompt_tokens": 46,
+          "completion_tokens": 128,
+          "total_tokens": 174
+        }
+      },
+      "throughput": {
+        "tokens_per_second": 27.0881,
+        "prompt_tps": 96.5359,
+        "generation_tps": 32.0429
+      },
+      "memory": {
+        "peak_gb": 12.9432,
+        "delta_gb": null
+      },
+      "reasoning": {
+        "requested": "off",
+        "effective": "off",
+        "supported": true,
+        "format": "qwen",
+        "source": "cli"
+      },
+      "cache": {
+        "mode": "prefill",
+        "used": true,
+        "cache_id": "mlx-mlx-qwen3.5-9b-q4-long-64k",
+        "source": "cli"
+      },
+      "transport": {
+        "mode": "openai-compat"
+      },
+      "stream": {
+        "enabled": true,
+        "actual_streaming": false
+      },
+      "sources": {
+        "usage.normalized.prompt_tokens": "server",
+        "usage.normalized.completion_tokens": "server",
+        "usage.normalized.total_tokens": "server",
+        "usage.server.prompt_tokens": "server",
+        "usage.server.completion_tokens": "server",
+        "usage.server.total_tokens": "server",
+        "timing.client.total_time_sec": "client_derived",
+        "timing.client.ttft_sec": "unavailable_non_stream",
+        "timing.server.ttft_sec": "server",
+        "timing.server.total_time_sec": "server",
+        "throughput.prompt_tps": "server",
+        "throughput.generation_tps": "server",
+        "throughput.tokens_per_second": "client_derived",
+        "memory.peak_gb": "server",
+        "timing.cache.prefill_sec": "client_derived"
+      },
+      "artifacts": {
+        "payload_path": "data/benchmark/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s0/payload.json",
+        "response_path": "data/benchmark/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s0/response.json"
+      },
+      "dataset": "long",
+      "case_name": "long-64k-0",
+      "context_tokens_target": 64000,
+      "payload_source": "dataset/turboquant_2504_19874v1.md",
+      "needle_key": "long-needle-64k-s1",
+      "needle_value": "NIAH-LONG-64K-S01-065522",
+      "needle_position": 1734,
+      "prompt_cache_group": "long-64k",
+      "phase": "cache-prime",
+      "benchmark_included": false
+    },
+    {
+      "success": true,
+      "runtime": "mlx",
+      "model": "mlx-community/Qwen3.5-9B-4bit",
+      "timestamp": "2026-04-16T10:44:12.456548+00:00",
+      "timing": {
+        "client": {
+          "total_time_sec": 5.465,
+          "ttft_sec": null
+        },
+        "server": {
+          "total_time_sec": 5.4206,
+          "ttft_sec": 0.7511
+        }
+      },
+      "usage": {
+        "server": {
+          "prompt_tokens": 46,
+          "completion_tokens": 128,
+          "total_tokens": 174
+        },
+        "normalized": {
+          "prompt_tokens": 46,
+          "completion_tokens": 128,
+          "total_tokens": 174
+        }
+      },
+      "throughput": {
+        "tokens_per_second": 23.4218,
+        "prompt_tps": 81.3019,
+        "generation_tps": 27.5151
+      },
+      "memory": {
+        "peak_gb": 12.9432,
+        "delta_gb": null
+      },
+      "reasoning": {
+        "requested": "off",
+        "effective": "off",
+        "supported": true,
+        "format": "qwen",
+        "source": "cli"
+      },
+      "cache": {
+        "mode": "prefill",
+        "used": true,
+        "cache_id": "mlx-mlx-qwen3.5-9b-q4-long-64k",
+        "source": "cli"
+      },
+      "transport": {
+        "mode": "openai-compat"
+      },
+      "stream": {
+        "enabled": true,
+        "actual_streaming": false
+      },
+      "sources": {
+        "usage.normalized.prompt_tokens": "server",
+        "usage.normalized.completion_tokens": "server",
+        "usage.normalized.total_tokens": "server",
+        "usage.server.prompt_tokens": "server",
+        "usage.server.completion_tokens": "server",
+        "usage.server.total_tokens": "server",
+        "timing.client.total_time_sec": "client_derived",
+        "timing.client.ttft_sec": "unavailable_non_stream",
+        "timing.server.ttft_sec": "server",
+        "timing.server.total_time_sec": "server",
+        "throughput.prompt_tps": "server",
+        "throughput.generation_tps": "server",
+        "throughput.tokens_per_second": "client_derived",
+        "memory.peak_gb": "server"
+      },
+      "artifacts": {
+        "payload_path": "data/benchmark/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s1/payload.json",
+        "response_path": "data/benchmark/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s1/response.json"
+      },
+      "retrieval": {
+        "expected": "NIAH-LONG-64K-S01-065522",
+        "predicted": "NIAH-LONG-64K-S01-065522",
+        "score_float": 1.0,
+        "exact": true
+      },
+      "dataset": "long",
+      "case_name": "long-64k-1",
+      "context_tokens_target": 64000,
+      "payload_source": "dataset/turboquant_2504_19874v1.md",
+      "needle_key": "long-needle-64k-s1",
+      "needle_value": "NIAH-LONG-64K-S01-065522",
+      "needle_position": 1734,
+      "prompt_cache_group": "long-64k",
+      "phase": "benchmark",
+      "benchmark_included": true
+    },
+    {
+      "success": true,
+      "runtime": "mlx",
+      "model": "mlx-community/Qwen3.5-9B-4bit",
+      "timestamp": "2026-04-16T10:44:17.422084+00:00",
+      "timing": {
+        "client": {
+          "total_time_sec": 4.9232,
+          "ttft_sec": null
+        },
+        "server": {
+          "total_time_sec": 4.8783,
+          "ttft_sec": 0.6902
+        }
+      },
+      "usage": {
+        "server": {
+          "prompt_tokens": 46,
+          "completion_tokens": 128,
+          "total_tokens": 174
+        },
+        "normalized": {
+          "prompt_tokens": 46,
+          "completion_tokens": 128,
+          "total_tokens": 174
+        }
+      },
+      "throughput": {
+        "tokens_per_second": 25.9994,
+        "prompt_tps": 90.1615,
+        "generation_tps": 30.6978
+      },
+      "memory": {
+        "peak_gb": 12.9432,
+        "delta_gb": null
+      },
+      "reasoning": {
+        "requested": "off",
+        "effective": "off",
+        "supported": true,
+        "format": "qwen",
+        "source": "cli"
+      },
+      "cache": {
+        "mode": "prefill",
+        "used": true,
+        "cache_id": "mlx-mlx-qwen3.5-9b-q4-long-64k",
+        "source": "cli"
+      },
+      "transport": {
+        "mode": "openai-compat"
+      },
+      "stream": {
+        "enabled": true,
+        "actual_streaming": false
+      },
+      "sources": {
+        "usage.normalized.prompt_tokens": "server",
+        "usage.normalized.completion_tokens": "server",
+        "usage.normalized.total_tokens": "server",
+        "usage.server.prompt_tokens": "server",
+        "usage.server.completion_tokens": "server",
+        "usage.server.total_tokens": "server",
+        "timing.client.total_time_sec": "client_derived",
+        "timing.client.ttft_sec": "unavailable_non_stream",
+        "timing.server.ttft_sec": "server",
+        "timing.server.total_time_sec": "server",
+        "throughput.prompt_tps": "server",
+        "throughput.generation_tps": "server",
+        "throughput.tokens_per_second": "client_derived",
+        "memory.peak_gb": "server"
+      },
+      "artifacts": {
+        "payload_path": "data/benchmark/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s2/payload.json",
+        "response_path": "data/benchmark/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s2/response.json"
+      },
+      "retrieval": {
+        "expected": "NIAH-LONG-64K-S02-066439",
+        "predicted": "NIAH-LONG-64K-S02-066439",
+        "score_float": 1.0,
+        "exact": true
+      },
+      "dataset": "long",
+      "case_name": "long-64k-2",
+      "context_tokens_target": 64000,
+      "payload_source": "dataset/turboquant_2504_19874v1.md",
+      "needle_key": "long-needle-64k-s2",
+      "needle_value": "NIAH-LONG-64K-S02-066439",
+      "needle_position": 3468,
+      "prompt_cache_group": "long-64k",
+      "phase": "benchmark",
+      "benchmark_included": true
+    },
+    {
+      "success": true,
+      "runtime": "mlx",
+      "model": "mlx-community/Qwen3.5-9B-4bit",
+      "timestamp": "2026-04-16T10:44:22.626178+00:00",
+      "timing": {
+        "client": {
+          "total_time_sec": 5.1612,
+          "ttft_sec": null
+        },
+        "server": {
+          "total_time_sec": 5.1171,
+          "ttft_sec": 0.7683
+        }
+      },
+      "usage": {
+        "server": {
+          "prompt_tokens": 46,
+          "completion_tokens": 128,
+          "total_tokens": 174
+        },
+        "normalized": {
+          "prompt_tokens": 46,
+          "completion_tokens": 128,
+          "total_tokens": 174
+        }
+      },
+      "throughput": {
+        "tokens_per_second": 24.8003,
+        "prompt_tps": 77.7045,
+        "generation_tps": 29.5516
+      },
+      "memory": {
+        "peak_gb": 12.9432,
+        "delta_gb": null
+      },
+      "reasoning": {
+        "requested": "off",
+        "effective": "off",
+        "supported": true,
+        "format": "qwen",
+        "source": "cli"
+      },
+      "cache": {
+        "mode": "prefill",
+        "used": true,
+        "cache_id": "mlx-mlx-qwen3.5-9b-q4-long-64k",
+        "source": "cli"
+      },
+      "transport": {
+        "mode": "openai-compat"
+      },
+      "stream": {
+        "enabled": true,
+        "actual_streaming": false
+      },
+      "sources": {
+        "usage.normalized.prompt_tokens": "server",
+        "usage.normalized.completion_tokens": "server",
+        "usage.normalized.total_tokens": "server",
+        "usage.server.prompt_tokens": "server",
+        "usage.server.completion_tokens": "server",
+        "usage.server.total_tokens": "server",
+        "timing.client.total_time_sec": "client_derived",
+        "timing.client.ttft_sec": "unavailable_non_stream",
+        "timing.server.ttft_sec": "server",
+        "timing.server.total_time_sec": "server",
+        "throughput.prompt_tps": "server",
+        "throughput.generation_tps": "server",
+        "throughput.tokens_per_second": "client_derived",
+        "memory.peak_gb": "server"
+      },
+      "artifacts": {
+        "payload_path": "data/benchmark/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s3/payload.json",
+        "response_path": "data/benchmark/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s3/response.json"
+      },
+      "retrieval": {
+        "expected": "NIAH-LONG-64K-S03-067356",
+        "predicted": "NIAH-LONG-64K-S03-067356",
+        "score_float": 1.0,
+        "exact": true
+      },
+      "dataset": "long",
+      "case_name": "long-64k-3",
+      "context_tokens_target": 64000,
+      "payload_source": "dataset/turboquant_2504_19874v1.md",
+      "needle_key": "long-needle-64k-s3",
+      "needle_value": "NIAH-LONG-64K-S03-067356",
+      "needle_position": 5202,
+      "prompt_cache_group": "long-64k",
+      "phase": "benchmark",
+      "benchmark_included": true
+    }
+  ]
+}

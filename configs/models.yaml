@@ -14,9 +14,9 @@ profiles:
     reasoning:
       format: qwen
 
-  ollama/qwen:
-    reasoning:
-      format: ollama-think
+  llama.cpp/qwen:
+    capabilities:
+      reasoning_supported: false
 
 models:
   - mlx-qwen3.5-9b-optiq-q4:
@@ -63,29 +63,16 @@ models:
       aliases:
         - qwen-35b-a3b
 
-  - ollama-qwen3.5-9b:
+  - llama.cpp-qwen3.5-9b-q4-k-m:
       model:
-        name: qwen3.5:9b
+        name: unsloth/Qwen3.5-9B-GGUF:Q4_K_M
         size: 9
         quant: 4
       runtime:
-        server: ollama
+        server: llama.cpp
       family: qwen
-
-  - ollama-opus-27b:
-      model:
-        name: sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M
-        size: 27
-        quant: 4
-      runtime:
-        server: ollama
-      family: qwen
-
-  - ollama-opus-35b:
-      model:
-        name: RogerBen/qwen3.5-35b-opus-distill
-        size: 35
-        quant: 4
-      runtime:
-        server: ollama
-      family: qwen
+      capabilities:
+        tokenizer_model: Qwen/Qwen3.5-9B
+      aliases:
+        - llama-cpp-qwen-9b
+        - llama-cpp-9b

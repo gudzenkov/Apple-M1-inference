@@ -123,24 +123,27 @@ def stop_mlx_servers(verbose: bool = True) -> None:
         raise RuntimeError("Ports 8000/8080 are still occupied after stop attempts")
 
 
-def ensure_model_downloaded(model: str, runtime: str) -> bool:
-    if runtime != "ollama":
-        return True
+def stop_llama_cpp_servers(port: int, verbose: bool = True) -> None:
+    pids: Set[int] = set()
+    pids |= pids_for_listen_port(port)
+    pids |= pids_for_pattern(rf"llama-server.*--port[ =]{port}")
 
-    print(f"Checking if {model} is available...", file=sys.stderr)
-    result = subprocess.run(["ollama", "list"], capture_output=True, text=True, check=False)
-    if model in result.stdout:
-        print(f"✓ Model {model} already available", file=sys.stderr)
-        return True
+    if not pids:
+        return
 
-    print(f"Pulling {model}...", file=sys.stderr)
-    try:
-        subprocess.run(["ollama", "pull", model], check=True)
-        print(f"✓ Model {model} downloaded", file=sys.stderr)
-        return True
-    except subprocess.CalledProcessError as exc:
-        print(f"✗ Failed to pull {model}: {exc}", file=sys.stderr)
-        return False
+    if verbose:
+        print(f"Stopping existing llama.cpp server processes on port {port}: {sorted(pids)}", file=sys.stderr)
+
+    failed: List[int] = []
+    for pid in sorted(pids):
+        if not stop_pid_gracefully(pid):
+            failed.append(pid)
+
+    if failed:
+        raise RuntimeError(f"Failed to stop running llama.cpp server processes: {failed}")
+
+    if pids_for_listen_port(port):
+        raise RuntimeError(f"Port {port} is still occupied after stop attempts")
 
 
 def wait_for_server_ready(health_url: str, timeout_sec: int) -> bool:
@@ -154,6 +157,22 @@ def wait_for_server_ready(health_url: str, timeout_sec: int) -> bool:
             pass
         time.sleep(1)
     return False
+
+
+def _render_start_cmd(start_cmd: List[str], *, model: str, port: int) -> List[str]:
+    host = "127.0.0.1"
+    variables = {
+        "model": model,
+        "host": host,
+        "port": str(port),
+    }
+    rendered: List[str] = []
+    for arg in start_cmd:
+        try:
+            rendered.append(arg.format_map(variables))
+        except KeyError as exc:
+            raise RuntimeError(f"Unknown placeholder in managed server command: {exc}") from exc
+    return rendered
 
 
 def start_managed_server(
@@ -170,12 +189,14 @@ def start_managed_server(
 
     env = os.environ.copy()
     env["HUGGINGFACE_MODEL"] = model
+    env["MODEL_ID"] = model
     env["HOST"] = "127.0.0.1"
     env["PORT"] = str(config["port"])
+    start_cmd = _render_start_cmd(config["start_cmd"], model=model, port=int(config["port"]))
 
     print(f"Starting {runtime} server for model {model}...", file=sys.stderr)
     proc = subprocess.Popen(
-        config["start_cmd"],
+        start_cmd,
         cwd=str(root_dir),
         env=env,
         stdout=log_handle,

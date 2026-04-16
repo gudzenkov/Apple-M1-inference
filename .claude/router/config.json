@@ -6,22 +6,6 @@
   "API_TIMEOUT_MS": 600000,
   "Providers": [
     {
-      "name": "ollama",
-      "api_base_url": "http://localhost:11434/v1/chat/completions",
-      "api_key": "ollama",
-      "models": [
-        "sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M",
-        "qwen3.5:9b"
-      ],
-      "transformer": {
-        "sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M": {
-          "use": [
-            "enhancetool"
-          ]
-        }
-      }
-    },
-    {
       "name": "mlx-local",
       "api_base_url": "http://localhost:8000/v1/chat/completions",
       "api_key": "mlx",
@@ -81,10 +65,10 @@
     "fontFamily": "Hack Nerd Font Mono"
   },
   "Router": {
-    "default": "ollama,SimonPu/Qwen3-Coder:30B-Instruct_Q4_K_XL",
+    "default": "mlx-community/Qwen3.5-27B-4bit",
     "background": "qwen3.5:9b",
-    "think": "ollama,sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M",
-    "longContext": "ollama,sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M",
+    "think": "mlx-community/Qwen3.5-27B-4bit",
+    "longContext": "mlx-community/Qwen3.5-27B-4bit",
     "longContextThreshold": 60000,
     "webSearch": "qwen3.5:9b"
   },

@@ -62,7 +62,21 @@ def row_server_prompt_eval_sec(row: Dict[str, Any]) -> float:
     return 0.0
 
 
+def row_cache_prefill_sec(row: Dict[str, Any]) -> float:
+    timing = row.get("timing")
+    if isinstance(timing, dict):
+        cache = timing.get("cache")
+        if isinstance(cache, dict):
+            value = to_float(cache.get("prefill_sec"))
+            if value > 0:
+                return value
+    return 0.0
+
+
 def row_prefill_sec(row: Dict[str, Any]) -> float:
+    explicit_prefill_sec = row_cache_prefill_sec(row)
+    if explicit_prefill_sec > 0:
+        return explicit_prefill_sec
     phase = str(row.get("phase") or "").strip().lower()
     if phase == "cache-prime":
         return row_total_time(row)

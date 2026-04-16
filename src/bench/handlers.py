@@ -8,12 +8,11 @@ from typing import Any, Dict, Optional
 
 from src.bench.composition import ComposedBenchmarkSpec
 from src.bench.metrics.cache import clear_prompt_cache, prefill_prompt_cache
-from src.bench.metrics.common import error_result, sample_rss_gb
-from src.bench.metrics.ollama import benchmark_ollama_native, warmup_ollama_native
+from src.bench.metrics.common import error_result
 from src.bench.metrics.openai import benchmark_openai_compat, warmup_openai_compat
 from src.bench.process import (
-    ensure_model_downloaded,
     start_managed_server,
+    stop_llama_cpp_servers,
     stop_managed_process,
     stop_mlx_servers,
 )
@@ -59,7 +58,18 @@ class RuntimeHandler:
         raise NotImplementedError
 
 
-class MlxRuntimeHandler(RuntimeHandler):
+def _stop_runtime_servers(runtime: str, port: Optional[int], *, verbose: bool) -> None:
+    runtime_name = runtime.strip().lower()
+    if runtime_name in {"mlx", "mlx-optiq"}:
+        stop_mlx_servers(verbose=verbose)
+        return
+    if runtime_name == "llama.cpp":
+        stop_llama_cpp_servers(port=port or 8090, verbose=verbose)
+        return
+    raise ValueError(f"Unsupported runtime: {runtime}")
+
+
+class OpenAICompatRuntimeHandler(RuntimeHandler):
     def setup_model(
         self,
         *,
@@ -90,7 +100,7 @@ class MlxRuntimeHandler(RuntimeHandler):
 
         try:
             if spec.managed_server:
-                stop_mlx_servers(verbose=True)
+                _stop_runtime_servers(spec.runtime, spec.port, verbose=True)
                 server_start_started = time.perf_counter()
                 managed_proc = start_managed_server(
                     runtime=spec.runtime,
@@ -162,6 +172,7 @@ class MlxRuntimeHandler(RuntimeHandler):
         extra_payload: Optional[Dict[str, Any]] = None
         used_prompt_cache = False
         cache_id: Optional[str] = None
+        prefill_sec: Optional[float] = None
 
         if spec.cache_mode == "prefill" and spec.reasoning_effective == "off":
             prompt_prefix = case.get("prompt_prefix")
@@ -183,6 +194,7 @@ class MlxRuntimeHandler(RuntimeHandler):
                     )
                     if prefill.get("success"):
                         state.cache_ids.add(cache_id)
+                        prefill_sec = float(prefill.get("prefill_sec", 0.0) or 0.0)
                     else:
                         prefill_error = str(prefill.get("error", "unknown"))
                         state.fatal_error = (
@@ -229,7 +241,7 @@ class MlxRuntimeHandler(RuntimeHandler):
             "source": spec.cache_source,
         }
 
-        return benchmark_openai_compat(
+        result = benchmark_openai_compat(
             chat_url=spec.chat_url,
             model=spec.model,
             prompt=prompt_text,
@@ -245,6 +257,23 @@ class MlxRuntimeHandler(RuntimeHandler):
             cache=cache,
             stream_enabled=spec.stream_enabled,
         )
+        if prefill_sec and prefill_sec > 0:
+            timing = result.setdefault("timing", {})
+            if not isinstance(timing, dict):
+                timing = {}
+                result["timing"] = timing
+            cache_timing = timing.setdefault("cache", {})
+            if not isinstance(cache_timing, dict):
+                cache_timing = {}
+                timing["cache"] = cache_timing
+            cache_timing["prefill_sec"] = round(prefill_sec, 4)
+
+            sources = result.setdefault("sources", {})
+            if not isinstance(sources, dict):
+                sources = {}
+                result["sources"] = sources
+            sources["timing.cache.prefill_sec"] = "client_derived"
+        return result
 
     def teardown_model(self, *, spec: ComposedBenchmarkSpec, state: ModelRunState) -> None:
         try:
@@ -264,144 +293,11 @@ class MlxRuntimeHandler(RuntimeHandler):
             if state.managed_proc is not None:
                 stop_managed_process(state.managed_proc)
             if spec.managed_server:
-                stop_mlx_servers(verbose=False)
-
-
-class OllamaRuntimeHandler(RuntimeHandler):
-    def setup_model(
-        self,
-        *,
-        spec: ComposedBenchmarkSpec,
-        args: Any,
-        root_dir: Path,
-        log_dir: Path,
-        case_build_sec: float,
-    ) -> tuple[Dict[str, Any], ModelRunState]:
-        _ = (root_dir, log_dir)
-        setup_entry: Dict[str, Any] = {
-            "runtime": spec.runtime,
-            "model": spec.model,
-            "model_key": spec.model_key,
-            "case_build_sec": round(case_build_sec, 4),
-            "download_or_check_sec": 0.0,
-            "server_start_sec": 0.0,
-            "warmup_sec": 0.0,
-            "warmup_success": None,
-            "warmup_status_code": None,
-            "reasoning_mode": spec.reasoning_effective,
-            "cache_mode": spec.cache_mode,
-            "transport": spec.transport_mode,
-            "stream": spec.stream_enabled,
-            "reasoning_supported": spec.reasoning_supported,
-            "reasoning_format": spec.reasoning_format,
-        }
-        state = ModelRunState()
-
-        download_started = time.perf_counter()
-        try:
-            model_ready = ensure_model_downloaded(spec.model, spec.runtime)
-        except Exception as exc:  # noqa: BLE001
-            model_ready = False
-            state.setup_error = str(exc)
-
-        if not model_ready:
-            setup_entry["download_or_check_sec"] = round(time.perf_counter() - download_started, 4)
-            state.setup_failed = True
-            if not state.setup_error:
-                state.setup_error = f"Failed to ensure model is available: {spec.model}"
-            setup_entry["setup_error"] = state.setup_error
-            return setup_entry, state
-
-        setup_entry["download_or_check_sec"] = round(time.perf_counter() - download_started, 4)
-
-        state.baseline_rss_gb = sample_rss_gb(process_pattern=spec.process_hint)
-
-        if not args.skip_warmup:
-            warmup = warmup_ollama_native(
-                chat_url=spec.chat_url,
-                model=spec.model,
-                request_timeout_sec=spec.request_timeout_sec,
-                request_options=spec.request_options,
-                reasoning_effective=spec.reasoning_effective,
-                reasoning_format=spec.reasoning_format,
-            )
-            setup_entry["warmup_sec"] = float(warmup.get("warmup_sec", 0.0) or 0.0)
-            setup_entry["warmup_success"] = bool(warmup.get("success", False))
-            setup_entry["warmup_status_code"] = warmup.get("status_code")
-            if not warmup.get("success"):
-                setup_entry["setup_warning"] = warmup.get("error")
-            time.sleep(1)
-
-        state.warmup_rss_gb = sample_rss_gb(process_pattern=spec.process_hint)
-        return setup_entry, state
-
-    def run_case(
-        self,
-        *,
-        spec: ComposedBenchmarkSpec,
-        args: Any,
-        case: Dict[str, Any],
-        run_dir: Path,
-        state: ModelRunState,
-    ) -> Dict[str, Any]:
-        _ = args
-        prompt_text = str(case.get("prompt") or "")
-
-        cache_payload_patch: Dict[str, Any] = {}
-        used_prompt_cache = False
-        cache_id: Optional[str] = None
-        if spec.cache_mode == "request":
-            prompt_cache_group = case.get("prompt_cache_group")
-            cache_options: Dict[str, Any] = {
-                "cache_prompt": True,
-            }
-            if isinstance(prompt_cache_group, str) and prompt_cache_group:
-                cache_id = slug(f"{spec.runtime}-{spec.model_key}-{prompt_cache_group}")
-                cache_payload_patch["prompt_cache_key"] = cache_id
-            cache_payload_patch["options"] = cache_options
-            used_prompt_cache = True
-
-        reasoning = {
-            "requested": spec.reasoning_requested,
-            "effective": spec.reasoning_effective,
-            "supported": spec.reasoning_supported,
-            "format": spec.reasoning_format,
-            "source": spec.reasoning_source,
-        }
-        cache = {
-            "mode": spec.cache_mode,
-            "used": used_prompt_cache,
-            "cache_id": cache_id,
-            "source": spec.cache_source,
-        }
-
-        return benchmark_ollama_native(
-            chat_url=spec.chat_url,
-            model=spec.model,
-            prompt=prompt_text,
-            max_tokens=int(case["max_tokens"]),
-            runtime=spec.runtime,
-            transport_mode=spec.transport_mode,
-            request_options=spec.request_options,
-            memory_pattern=spec.process_hint,
-            request_timeout_sec=spec.request_timeout_sec,
-            artifact_dir=run_dir,
-            reasoning=reasoning,
-            cache=cache,
-            stream_enabled=spec.stream_enabled,
-            baseline_rss_gb=state.baseline_rss_gb,
-            warmup_rss_gb=state.warmup_rss_gb,
-            cache_payload_patch=cache_payload_patch,
-        )
-
-    def teardown_model(self, *, spec: ComposedBenchmarkSpec, state: ModelRunState) -> None:
-        _ = (spec, state)
+                _stop_runtime_servers(spec.runtime, spec.port, verbose=False)
 
 
 def get_runtime_handler(runtime: str) -> RuntimeHandler:
     runtime_name = runtime.strip().lower()
-    if runtime_name in {"mlx", "mlx-optiq"}:
-        return MlxRuntimeHandler()
-    if runtime_name == "ollama":
-        return OllamaRuntimeHandler()
+    if runtime_name in {"mlx", "mlx-optiq", "llama.cpp"}:
+        return OpenAICompatRuntimeHandler()
     raise ValueError(f"Unsupported runtime: {runtime}")

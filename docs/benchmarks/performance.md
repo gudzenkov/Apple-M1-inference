@@ -1,10 +1,11 @@
-# Performance Benchmark: MLX vs MLX-Optiq
+# Performance Benchmark: MLX, MLX-Optiq, and llama.cpp
 
-Benchmark workflow for comparing the two local MLX inference servers:
+Benchmark workflow for comparing the local inference runtimes used in this repo:
 - `mlx-openai-server` (standard, port `8000`)
 - `mlx-openai-optiq-server` (TurboQuant, port `8080`)
+- `llama-server` (`llama.cpp`, port `8090`)
 
-The benchmark runner manages server lifecycle to avoid OOM from running both MLX servers at once.
+The benchmark runner manages server lifecycle to avoid OOM from running multiple local servers at once.
 It now uses 2 dataset modes:
 - `short` (fixed `8k`, needle-in-haystack retrieval)
 - `long` (variable context via `--context`, default `64k`, needle-in-haystack retrieval)
@@ -12,22 +13,22 @@ It now uses 2 dataset modes:
 ## Recall
 
 64k needle-in-haystack run (`samples=20`, `use_prompt_cache=true`, date `2026-03-28`)
-64k needle-in-haystack run (`samples=3`, `stream=on`, `cache=auto`, `reasoning=off`, date `2026-03-30`):
+64k needle-in-haystack run (`samples=3`, `stream=on`, `cache=auto`, `reasoning=off`, date `2026-04-16`):
 
 | Runtime | Model | Context | Prompt tps | Gen tps | Prefill (s) | TTFT (s) | Peak RAM (GB) | Avg retrieval score | Retrieval exact rate | Exact CI95 +/- |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | mlx | Qwen3.5-9B-4bit | 64k | 78.683 | 25.722 | - | 0.868 | 12.94 | 0.967 | 0.800 | 0.175 |
 | mlx-optiq | Qwen3.5-9B-OptiQ-4bit | 64k | 93.727 | 26.167 | - | 0.689 | 15.35 | 1.000 | 1.000 | 0.000 |
 | delta (mlx vs optiq) | - | - | +19.12% | +1.73% | - | -20.62% | +18.62% | +3.41% | +25.00% | - |
-| ollama (`cache=request`) | qwen3.5:9b | 64k | 177.292 | 8.012 | 362.009 | 17.333 | 16.73 | 1.000 | 1.000 | 0.000 |
-| mlx (`cache=prefill`) | Qwen3.5-9B-4bit | 64k | 93.739 | 29.818 | 4.697 | 0.743 | 12.94 | 1.000 | 1.000 | 0.000 |
-| delta (mlx vs ollama) | - | - | -47.13% | +272.16% | -98.70% | -95.71% | -22.65% | +0.00% | +0.00% | - |
+| llama.cpp (`cache=request`) | Qwen3.5-9B-GGUF Q4_K_M | 64k | 261.343 | 23.806 | 245.299 | 2.802 | 10.31 | 1.000 | 1.000 | 0.000 |
+| mlx (`cache=prefill`) | Qwen3.5-9B-4bit | 64k | 96.536 | 29.255 | 317.255 | 0.737 | 12.94 | 1.000 | 1.000 | 0.000 |
+| delta (mlx vs llama.cpp) | - | - | -63.06% | +22.89% | +29.33% | -73.70% | +25.51% | +0.00% | +0.00% | - |
 
 Source summaries:
 - `results/mlx-turboquant-s20-mt100-pc1/20260328T110231Z/mlx-qwen3.5-9b-q4-64k-s20.md`
 - `results/mlx-optiq-turboquant-s20-mt100-pc1/20260328T111033Z/mlx-optiq-qwen3.5-9b-optiq-q4-64k-s20.md`
-- `results/ollama-turboquant-s3-mt32-cache-request/20260330T173436Z/ollama-qwen3.5-9b-64k-s3.json`
-- `results/mlx-turboquant-s3-mt32-cache-prefill/20260330T171219Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s3.json`
+- `results/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z/llama.cpp-unsloth-Qwen3.5-9B-GGUF-Q4_K_M-64k-s3.json`
+- `results/mlx-turboquant-s3-mt100-cache-prefill/20260416T103835Z/mlx-mlx-community-Qwen3.5-9B-4bit-64k-s3.json`
 
 ## Performance
 
@@ -110,10 +111,10 @@ Raw results:
 - `--runtime auto` (default): resolve runtime from `--model` using `configs/models.yaml`.
 - `--runtime mlx`: benchmark only `mlx-openai-server` on `:8000`.
 - `--runtime mlx-optiq`: benchmark only `mlx-openai-optiq-server` on `:8080`.
-- `--runtime ollama`: benchmark external Ollama server on `:11434` (optional).
+- `--runtime llama.cpp`: benchmark only `llama-server` on `:8090`.
 
-For managed MLX runs (`mlx`, `mlx-optiq`), the script:
-1. Stops existing MLX server processes on ports `8000` and `8080`.
+For managed runtime runs (`mlx`, `mlx-optiq`, `llama.cpp`), the script:
+1. Stops any existing managed server process on the runtime's port.
 2. Starts the selected server with the selected model.
 3. Runs benchmark prompts.
 4. Stops the server before moving to the next runtime/model.
@@ -123,17 +124,18 @@ For managed MLX runs (`mlx`, `mlx-optiq`), the script:
 ```bash
 # Default runtime from model config (recommended)
 uv run benchmark --model mlx-qwen-9b
-uv run benchmark --model qwen3.5:9b
-
-# MLX only
 uv run benchmark --runtime mlx --model mlx-qwen-9b
 
 # MLX-Optiq only
 uv run benchmark --runtime mlx-optiq --model mlx-optiq-9b
 
+# llama.cpp only
+uv run benchmark --runtime llama.cpp --model llama-cpp-qwen-9b
+
 # Compare both servers with explicit separate runs
 uv run benchmark --runtime mlx --model mlx-qwen-9b
 uv run benchmark --runtime mlx-optiq --model mlx-optiq-9b
+uv run benchmark --runtime llama.cpp --model llama-cpp-qwen-9b
 
 # Run short dataset only (8k)
 uv run benchmark --dataset short --runtime mlx --samples 3
@@ -246,5 +248,4 @@ jq -s 'group_by(.runtime) | map({runtime: .[0].runtime, avg_peak_ram_gb: (map(.m
 ## Resources
 
 - [MLX server runbook](../servers/MLX.md)
-- [Ollama runbook](../servers/ollama.md)
 - [Benchmark CLI](../../src/cli/benchmark.py)

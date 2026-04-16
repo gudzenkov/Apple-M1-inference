@@ -12,7 +12,7 @@ from src.bench.handlers import get_runtime_handler
 from src.bench.runner.naming import run_param
 from src.bench.runner.retrieval import annotate_retrieval
 from src.bench.runner.stats import row_throughput, row_total_time
-from src.shared.models import get_default_model_id
+from src.shared.models import get_model_entry
 
 
 def _case_meta_from_case(case: Dict[str, Any]) -> Dict[str, Any]:
@@ -52,10 +52,15 @@ def _cache_prime_key(case: Dict[str, Any]) -> str:
     return f"{dataset}:{context_part}"
 
 
-def _build_prime_case(case: Dict[str, Any]) -> Dict[str, Any]:
+def _build_prime_case(case: Dict[str, Any], *, cache_mode: str) -> Dict[str, Any]:
     prime_case = dict(case)
     prime_case["case_name"] = _prime_case_name(str(case.get("case_name") or "cache-prime"))
     prime_case["phase"] = "cache-prime"
+
+    # MLX prefill needs the real first suffix to preserve retrieval behavior.
+    if cache_mode == "prefill":
+        return prime_case
+
     try:
         prime_case["max_tokens"] = min(int(case.get("max_tokens", 16)), 8)
     except Exception:  # noqa: BLE001
@@ -89,9 +94,17 @@ def _build_cache_prime_cases(cases: list[Dict[str, Any]], cache_mode: str) -> li
         if key in seen_keys:
             continue
         seen_keys.add(key)
-        prime_case = _build_prime_case(case)
+        prime_case = _build_prime_case(case, cache_mode=cache_mode)
         prime_cases.append(prime_case)
     return prime_cases
+
+
+def _tokenizer_model_id_for_runtime_model(runtime: str, model: str) -> str:
+    model_entry = get_model_entry(model, runtime=runtime)
+    tokenizer_model = model_entry.get("capabilities", {}).get("tokenizer_model")
+    if isinstance(tokenizer_model, str) and tokenizer_model.strip():
+        return tokenizer_model.strip()
+    return model
 
 
 def run_runtime_matrix(
@@ -110,9 +123,7 @@ def run_runtime_matrix(
         handler = get_runtime_handler(runtime)
 
         for model in models:
-            tokenizer_model_id = model
-            if runtime == "ollama":
-                tokenizer_model_id = get_default_model_id(runtime="mlx")
+            tokenizer_model_id = _tokenizer_model_id_for_runtime_model(runtime, model)
 
             case_build_started = time.perf_counter()
             cases = build_cases(
