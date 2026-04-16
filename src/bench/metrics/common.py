@@ -158,6 +158,9 @@ def extract_text_from_message(message: Any) -> str:
     reasoning = message.get("reasoning")
     if isinstance(reasoning, str) and reasoning.strip():
         return reasoning
+    reasoning_content = message.get("reasoning_content")
+    if isinstance(reasoning_content, str) and reasoning_content.strip():
+        return reasoning_content
     return ""
 
 

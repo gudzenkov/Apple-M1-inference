@@ -22,6 +22,45 @@ from src.bench.metrics.common import (
 )
 
 
+def _perf_and_usage_from_llama_timings(timings: Any) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    if not isinstance(timings, dict):
+        return {}, {}
+
+    prompt_tokens = safe_int(timings.get("prompt_n"))
+    completion_tokens = safe_int(timings.get("predicted_n"))
+    prompt_ms = safe_float(timings.get("prompt_ms"))
+    completion_ms = safe_float(timings.get("predicted_ms"))
+
+    perf: Dict[str, Any] = {}
+    if prompt_ms > 0:
+        perf["ttft_sec"] = round(prompt_ms / 1000.0, 4)
+    total_ms = 0.0
+    if prompt_ms > 0:
+        total_ms += prompt_ms
+    if completion_ms > 0:
+        total_ms += completion_ms
+    if total_ms > 0:
+        perf["total_time_sec"] = round(total_ms / 1000.0, 4)
+
+    prompt_tps = safe_float(timings.get("prompt_per_second"))
+    generation_tps = safe_float(timings.get("predicted_per_second"))
+    if prompt_tps > 0:
+        perf["prompt_tps"] = round(prompt_tps, 4)
+    if generation_tps > 0:
+        perf["generation_tps"] = round(generation_tps, 4)
+
+    usage: Dict[str, Any] = {}
+    if prompt_tokens > 0:
+        usage["prompt_tokens"] = prompt_tokens
+    if completion_tokens > 0:
+        usage["completion_tokens"] = completion_tokens
+    total_tokens = prompt_tokens + completion_tokens
+    if total_tokens > 0:
+        usage["total_tokens"] = total_tokens
+
+    return perf, usage
+
+
 def benchmark_openai_compat(
     *,
     chat_url: str,
@@ -167,6 +206,11 @@ def benchmark_openai_compat(
                 chunk_perf = chunk.get("perf")
                 if isinstance(chunk_perf, dict):
                     perf.update(chunk_perf)
+                chunk_timings_perf, chunk_timings_usage = _perf_and_usage_from_llama_timings(chunk.get("timings"))
+                if chunk_timings_perf:
+                    perf.update(chunk_timings_perf)
+                if chunk_timings_usage and not usage:
+                    usage.update(chunk_timings_usage)
 
                 choices = chunk.get("choices")
                 if isinstance(choices, list) and choices:
@@ -184,6 +228,12 @@ def benchmark_openai_compat(
                             if delta_reasoning and first_token_at is None:
                                 first_token_at = time.perf_counter()
                             reasoning_chunks.append(delta_reasoning)
+
+                        delta_reasoning_content = delta.get("reasoning_content")
+                        if isinstance(delta_reasoning_content, str):
+                            if delta_reasoning_content and first_token_at is None:
+                                first_token_at = time.perf_counter()
+                            reasoning_chunks.append(delta_reasoning_content)
 
                     message = choice0.get("message")
                     message_text = extract_text_from_message(message)
@@ -234,6 +284,14 @@ def benchmark_openai_compat(
 
             usage = response_json.get("usage", {}) if isinstance(response_json, dict) else {}
             perf = response_json.get("perf", {}) if isinstance(response_json, dict) else {}
+            if not perf or not usage:
+                timings_perf, timings_usage = _perf_and_usage_from_llama_timings(
+                    response_json.get("timings") if isinstance(response_json, dict) else None
+                )
+                if timings_perf and not perf:
+                    perf = timings_perf
+                if timings_usage and not usage:
+                    usage = timings_usage
             choices = response_json.get("choices", []) if isinstance(response_json, dict) else []
             if isinstance(choices, list) and choices:
                 choice0 = choices[0] if isinstance(choices[0], dict) else {}

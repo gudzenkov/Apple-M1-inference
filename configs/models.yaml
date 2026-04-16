@@ -14,6 +14,10 @@ profiles:
     reasoning:
       format: qwen
 
+  llama.cpp/qwen:
+    capabilities:
+      reasoning_supported: false
+
 models:
   - mlx-qwen3.5-9b-optiq-q4:
       model:
@@ -58,3 +62,17 @@ models:
       family: qwen
       aliases:
         - qwen-35b-a3b
+
+  - llama.cpp-qwen3.5-9b-q4-k-m:
+      model:
+        name: unsloth/Qwen3.5-9B-GGUF:Q4_K_M
+        size: 9
+        quant: 4
+      runtime:
+        server: llama.cpp
+      family: qwen
+      capabilities:
+        tokenizer_model: Qwen/Qwen3.5-9B
+      aliases:
+        - llama-cpp-qwen-9b
+        - llama-cpp-9b

@@ -12,6 +12,7 @@ from src.bench.handlers import get_runtime_handler
 from src.bench.runner.naming import run_param
 from src.bench.runner.retrieval import annotate_retrieval
 from src.bench.runner.stats import row_throughput, row_total_time
+from src.shared.models import get_model_entry
 
 
 def _case_meta_from_case(case: Dict[str, Any]) -> Dict[str, Any]:
@@ -98,6 +99,14 @@ def _build_cache_prime_cases(cases: list[Dict[str, Any]], cache_mode: str) -> li
     return prime_cases
 
 
+def _tokenizer_model_id_for_runtime_model(runtime: str, model: str) -> str:
+    model_entry = get_model_entry(model, runtime=runtime)
+    tokenizer_model = model_entry.get("capabilities", {}).get("tokenizer_model")
+    if isinstance(tokenizer_model, str) and tokenizer_model.strip():
+        return tokenizer_model.strip()
+    return model
+
+
 def run_runtime_matrix(
     *,
     args: Any,
@@ -114,7 +123,7 @@ def run_runtime_matrix(
         handler = get_runtime_handler(runtime)
 
         for model in models:
-            tokenizer_model_id = model
+            tokenizer_model_id = _tokenizer_model_id_for_runtime_model(runtime, model)
 
             case_build_started = time.perf_counter()
             cases = build_cases(

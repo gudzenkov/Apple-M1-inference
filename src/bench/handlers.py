@@ -12,6 +12,7 @@ from src.bench.metrics.common import error_result
 from src.bench.metrics.openai import benchmark_openai_compat, warmup_openai_compat
 from src.bench.process import (
     start_managed_server,
+    stop_llama_cpp_servers,
     stop_managed_process,
     stop_mlx_servers,
 )
@@ -57,7 +58,18 @@ class RuntimeHandler:
         raise NotImplementedError
 
 
-class MlxRuntimeHandler(RuntimeHandler):
+def _stop_runtime_servers(runtime: str, port: Optional[int], *, verbose: bool) -> None:
+    runtime_name = runtime.strip().lower()
+    if runtime_name in {"mlx", "mlx-optiq"}:
+        stop_mlx_servers(verbose=verbose)
+        return
+    if runtime_name == "llama.cpp":
+        stop_llama_cpp_servers(port=port or 8090, verbose=verbose)
+        return
+    raise ValueError(f"Unsupported runtime: {runtime}")
+
+
+class OpenAICompatRuntimeHandler(RuntimeHandler):
     def setup_model(
         self,
         *,
@@ -88,7 +100,7 @@ class MlxRuntimeHandler(RuntimeHandler):
 
         try:
             if spec.managed_server:
-                stop_mlx_servers(verbose=True)
+                _stop_runtime_servers(spec.runtime, spec.port, verbose=True)
                 server_start_started = time.perf_counter()
                 managed_proc = start_managed_server(
                     runtime=spec.runtime,
@@ -281,11 +293,11 @@ class MlxRuntimeHandler(RuntimeHandler):
             if state.managed_proc is not None:
                 stop_managed_process(state.managed_proc)
             if spec.managed_server:
-                stop_mlx_servers(verbose=False)
+                _stop_runtime_servers(spec.runtime, spec.port, verbose=False)
 
 
 def get_runtime_handler(runtime: str) -> RuntimeHandler:
     runtime_name = runtime.strip().lower()
-    if runtime_name in {"mlx", "mlx-optiq"}:
-        return MlxRuntimeHandler()
+    if runtime_name in {"mlx", "mlx-optiq", "llama.cpp"}:
+        return OpenAICompatRuntimeHandler()
     raise ValueError(f"Unsupported runtime: {runtime}")

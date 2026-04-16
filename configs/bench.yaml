@@ -44,6 +44,48 @@ infra:
         - prefill
         - none
 
+    llama.cpp:
+      managed_server: true
+      model_runtime: llama.cpp
+      chat_url_openai: http://127.0.0.1:8090/v1/chat/completions
+      health_url: http://127.0.0.1:8090/v1/models
+      port: 8090
+      start_cmd:
+        - llama-server
+        - --hf-repo
+        - "{model}"
+        - --alias
+        - "{model}"
+        - --host
+        - "{host}"
+        - --port
+        - "{port}"
+        - --ctx-size
+        - "131072"
+        - --parallel
+        - "1"
+        - --slot-prompt-similarity
+        - "0.99"
+        - --cache-prompt
+        - --cache-reuse
+        - "256"
+        - --metrics
+        - --no-webui
+        - --jinja
+        - --no-mmproj
+        - --reasoning
+        - "off"
+        - --reasoning-format
+        - none
+      log_file: logs/llama-cpp-server.log
+      process_hint: llama-server
+      max_context_tokens: 131072
+      supported_transports:
+        - openai-compat
+      supported_cache_modes:
+        - request
+        - none
+
 defaults:
   runtimes:
     mlx:
@@ -61,5 +103,13 @@ defaults:
       stream: "on"
       request_timeout_sec: 2000
       server_start_timeout_sec: 300
+
+    llama.cpp:
+      reasoning_mode: "off"
+      cache_mode: request
+      transport: openai-compat
+      stream: "on"
+      request_timeout_sec: 2000
+      server_start_timeout_sec: 1800
 
 models: {}
