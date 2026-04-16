@@ -123,26 +123,6 @@ def stop_mlx_servers(verbose: bool = True) -> None:
         raise RuntimeError("Ports 8000/8080 are still occupied after stop attempts")
 
 
-def ensure_model_downloaded(model: str, runtime: str) -> bool:
-    if runtime != "ollama":
-        return True
-
-    print(f"Checking if {model} is available...", file=sys.stderr)
-    result = subprocess.run(["ollama", "list"], capture_output=True, text=True, check=False)
-    if model in result.stdout:
-        print(f"✓ Model {model} already available", file=sys.stderr)
-        return True
-
-    print(f"Pulling {model}...", file=sys.stderr)
-    try:
-        subprocess.run(["ollama", "pull", model], check=True)
-        print(f"✓ Model {model} downloaded", file=sys.stderr)
-        return True
-    except subprocess.CalledProcessError as exc:
-        print(f"✗ Failed to pull {model}: {exc}", file=sys.stderr)
-        return False
-
-
 def wait_for_server_ready(health_url: str, timeout_sec: int) -> bool:
     deadline = time.time() + timeout_sec
     while time.time() < deadline:

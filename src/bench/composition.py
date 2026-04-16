@@ -21,12 +21,12 @@ BENCH_CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / "bench.yam
 
 CLI_REASONING_MODES = {"auto", "off", "on"}
 CLI_CACHE_MODES = {"auto", "prefill", "request", "none"}
-CLI_TRANSPORT_MODES = {"auto", "openai-compat", "ollama-native"}
+CLI_TRANSPORT_MODES = {"auto", "openai-compat"}
 CLI_STREAM_MODES = {"auto", "on", "off"}
 
 CONCRETE_REASONING_MODES = {"off", "on"}
 CONCRETE_CACHE_MODES = {"prefill", "request", "none"}
-CONCRETE_TRANSPORT_MODES = {"openai-compat", "ollama-native"}
+CONCRETE_TRANSPORT_MODES = {"openai-compat"}
 CONCRETE_STREAM_MODES = {"on", "off"}
 
 
@@ -170,11 +170,8 @@ def _parse_runtime_infra(runtime: str, raw: Mapping[str, Any], context: str) -> 
         raise RuntimeError(f"{context}.supported_cache_modes has invalid values: {invalid_cache_modes}")
 
     chat_url_openai = _as_optional_non_empty_str(raw.get("chat_url_openai"), field="chat_url_openai", context=context)
-    chat_url_native = _as_optional_non_empty_str(raw.get("chat_url_native"), field="chat_url_native", context=context)
     if "openai-compat" in supported_transports and chat_url_openai is None:
         raise RuntimeError(f"{context}.chat_url_openai is required for openai-compat transport")
-    if "ollama-native" in supported_transports and chat_url_native is None:
-        raise RuntimeError(f"{context}.chat_url_native is required for ollama-native transport")
 
     cache_prefill_url = _as_optional_non_empty_str(raw.get("cache_prefill_url"), field="cache_prefill_url", context=context)
     cache_clear_url = _as_optional_non_empty_str(raw.get("cache_clear_url"), field="cache_clear_url", context=context)
@@ -199,7 +196,6 @@ def _parse_runtime_infra(runtime: str, raw: Mapping[str, Any], context: str) -> 
         "managed_server": managed_server,
         "model_runtime": model_runtime,
         "chat_url_openai": chat_url_openai,
-        "chat_url_native": chat_url_native,
         "health_url": health_url,
         "cache_prefill_url": cache_prefill_url,
         "cache_clear_url": cache_clear_url,
@@ -580,16 +576,12 @@ def compose_benchmark_spec(runtime: str, model: str, args: Any) -> ComposedBench
         raise ValueError(
             f"Transport '{transport_mode}' is not supported for runtime '{runtime_name}'"
         )
-    if runtime_name == "ollama" and transport_mode != "ollama-native":
-        raise ValueError("Ollama benchmarking is restricted to transport 'ollama-native'")
-
     if cache_mode not in set(infra.get("supported_cache_modes", set())):
         raise ValueError(
             f"Cache mode '{cache_mode}' is not supported for runtime '{runtime_name}'"
         )
 
-    chat_url_key = "chat_url_native" if transport_mode == "ollama-native" else "chat_url_openai"
-    chat_url = str(infra.get(chat_url_key) or "").strip()
+    chat_url = str(infra.get("chat_url_openai") or "").strip()
     if not chat_url:
         raise ValueError(f"Runtime '{runtime_name}' missing endpoint for transport '{transport_mode}'")
 

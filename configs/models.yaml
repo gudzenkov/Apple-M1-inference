@@ -14,10 +14,6 @@ profiles:
     reasoning:
       format: qwen
 
-  ollama/qwen:
-    reasoning:
-      format: ollama-think
-
 models:
   - mlx-qwen3.5-9b-optiq-q4:
       model:
@@ -62,30 +58,3 @@ models:
       family: qwen
       aliases:
         - qwen-35b-a3b
-
-  - ollama-qwen3.5-9b:
-      model:
-        name: qwen3.5:9b
-        size: 9
-        quant: 4
-      runtime:
-        server: ollama
-      family: qwen
-
-  - ollama-opus-27b:
-      model:
-        name: sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M
-        size: 27
-        quant: 4
-      runtime:
-        server: ollama
-      family: qwen
-
-  - ollama-opus-35b:
-      model:
-        name: RogerBen/qwen3.5-35b-opus-distill
-        size: 35
-        quant: 4
-      runtime:
-        server: ollama
-      family: qwen

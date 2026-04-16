@@ -44,21 +44,6 @@ infra:
         - prefill
         - none
 
-    ollama:
-      managed_server: false
-      model_runtime: ollama
-      chat_url_openai: http://127.0.0.1:11434/v1/chat/completions
-      chat_url_native: http://127.0.0.1:11434/api/chat
-      health_url: http://127.0.0.1:11434/v1/models
-      port: 11434
-      process_hint: ollama
-      max_context_tokens: 262144
-      supported_transports:
-        - ollama-native
-      supported_cache_modes:
-        - request
-        - none
-
 defaults:
   runtimes:
     mlx:
@@ -76,15 +61,5 @@ defaults:
       stream: "on"
       request_timeout_sec: 2000
       server_start_timeout_sec: 300
-
-    ollama:
-      reasoning_mode: "off"
-      cache_mode: request
-      transport: ollama-native
-      stream: "on"
-      request_timeout_sec: 2000
-      server_start_timeout_sec: 300
-      request_options:
-        num_ctx: 262144
 
 models: {}

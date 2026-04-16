@@ -12,7 +12,6 @@ from src.bench.handlers import get_runtime_handler
 from src.bench.runner.naming import run_param
 from src.bench.runner.retrieval import annotate_retrieval
 from src.bench.runner.stats import row_throughput, row_total_time
-from src.shared.models import get_default_model_id
 
 
 def _case_meta_from_case(case: Dict[str, Any]) -> Dict[str, Any]:
@@ -116,8 +115,6 @@ def run_runtime_matrix(
 
         for model in models:
             tokenizer_model_id = model
-            if runtime == "ollama":
-                tokenizer_model_id = get_default_model_id(runtime="mlx")
 
             case_build_started = time.perf_counter()
             cases = build_cases(

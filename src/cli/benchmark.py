@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--runtime",
-        choices=["auto", "mlx", "mlx-optiq", "ollama"],
+        choices=["auto", "mlx", "mlx-optiq"],
         default="auto",
         help=(
             "Runtime/server selection. Default: auto (resolve from --model via configs/models.yaml; "
@@ -110,7 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--transport",
-        choices=["auto", "ollama-native", "openai-compat"],
+        choices=["auto", "openai-compat"],
         default="auto",
         help="Transport mode (default: auto, resolved from composed runtime policy).",
     )

@@ -15,30 +15,6 @@
           "name": "Qwen3.5-27B-4bit"
         }
       }
-    },
-    "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Ollama Local",
-      "options": {
-        "baseURL": "http://localhost:11434/v1"
-      },
-      "models": {
-        "qwen3.5:9b": {
-          "name": "Qwen3.5-9B (Fast, Thinking+Tools)",
-          "supportsTools": true,
-          "toolChoice": "auto"
-        },
-        "sinhang/qwen3.5-claude-4.6-opus:27b-q4_K_M": {
-          "name": "Qwen3.5-Opus-27B (Thinking+Tools)",
-          "supportsTools": true,
-          "toolChoice": "auto"
-        },
-        "RogerBen/qwen3.5-35b-opus-distill": {
-          "name": "Qwen3.5 35B A3B (Thinking+Tools)",
-          "supportsTools": true,
-          "toolChoice": "auto"
-        }
-      }
     }
   }
 }

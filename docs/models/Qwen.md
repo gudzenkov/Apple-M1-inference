@@ -58,4 +58,4 @@ Adjust `max_tokens` per prompt (a default of 1024 works for most completions) an
 ## Resources
 
 - `docs/servers/MLX.md` – server launch commands, monitoring, troubleshooting.
-- `docs/benchmarks/performance.md` – benchmark workflow for MLX and MLX-Optiq (optional Ollama mode).
+- `docs/benchmarks/performance.md` – benchmark workflow for MLX and MLX-Optiq.
