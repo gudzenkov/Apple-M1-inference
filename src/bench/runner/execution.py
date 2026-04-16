@@ -52,10 +52,15 @@ def _cache_prime_key(case: Dict[str, Any]) -> str:
     return f"{dataset}:{context_part}"
 
 
-def _build_prime_case(case: Dict[str, Any]) -> Dict[str, Any]:
+def _build_prime_case(case: Dict[str, Any], *, cache_mode: str) -> Dict[str, Any]:
     prime_case = dict(case)
     prime_case["case_name"] = _prime_case_name(str(case.get("case_name") or "cache-prime"))
     prime_case["phase"] = "cache-prime"
+
+    # MLX prefill needs the real first suffix to preserve retrieval behavior.
+    if cache_mode == "prefill":
+        return prime_case
+
     try:
         prime_case["max_tokens"] = min(int(case.get("max_tokens", 16)), 8)
     except Exception:  # noqa: BLE001
@@ -89,7 +94,7 @@ def _build_cache_prime_cases(cases: list[Dict[str, Any]], cache_mode: str) -> li
         if key in seen_keys:
             continue
         seen_keys.add(key)
-        prime_case = _build_prime_case(case)
+        prime_case = _build_prime_case(case, cache_mode=cache_mode)
         prime_cases.append(prime_case)
     return prime_cases
 

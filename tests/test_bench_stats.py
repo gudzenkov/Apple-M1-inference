@@ -2,11 +2,57 @@ from __future__ import annotations
 
 import unittest
 
+from src.bench.runner.execution import _build_prime_case
 from src.bench.runner.stats import row_prefill_sec
 from src.bench.runner.summary import runtime_summary_rows
 
 
 class BenchStatsTest(unittest.TestCase):
+    def test_build_prime_case_prefill_keeps_real_case_payload(self) -> None:
+        case = {
+            "case_name": "long-64k-1",
+            "prompt": "REAL FULL PROMPT",
+            "prompt_suffix": "Question: real",
+            "max_tokens": 128,
+            "needle_key": "needle",
+            "needle_value": "value",
+            "needle_position": 123,
+        }
+
+        prime_case = _build_prime_case(case, cache_mode="prefill")
+
+        self.assertEqual(prime_case["case_name"], "long-64k-0")
+        self.assertEqual(prime_case["phase"], "cache-prime")
+        self.assertEqual(prime_case["prompt"], "REAL FULL PROMPT")
+        self.assertEqual(prime_case["prompt_suffix"], "Question: real")
+        self.assertEqual(prime_case["max_tokens"], 128)
+        self.assertEqual(prime_case["needle_key"], "needle")
+
+    def test_build_prime_case_request_uses_synthetic_cache_prime_prompt(self) -> None:
+        case = {
+            "case_name": "long-64k-1",
+            "prompt": "REAL FULL PROMPT",
+            "prompt_prefix": "REAL PREFIX\n",
+            "prompt_suffix": "Question: real",
+            "max_tokens": 128,
+            "needle_key": "needle",
+            "needle_value": "value",
+            "needle_position": 123,
+        }
+
+        prime_case = _build_prime_case(case, cache_mode="request")
+
+        self.assertEqual(prime_case["case_name"], "long-64k-0")
+        self.assertEqual(prime_case["phase"], "cache-prime")
+        self.assertEqual(prime_case["max_tokens"], 8)
+        self.assertEqual(
+            prime_case["prompt_suffix"],
+            "Question: Return exactly CACHE-PRIME-ONLY\nAnswer format: CACHE-PRIME-ONLY",
+        )
+        self.assertNotIn("needle_key", prime_case)
+        self.assertNotIn("needle_value", prime_case)
+        self.assertNotIn("needle_position", prime_case)
+
     def test_row_prefill_sec_prefers_explicit_cache_prefill_timing(self) -> None:
         row = {
             "phase": "cache-prime",
