@@ -1,0 +1,455 @@
+{
+  "generated_at": "2026-04-16T11:37:06.051596+00:00",
+  "params": {
+    "dataset": "long",
+    "contexts_k": [
+      64
+    ],
+    "runtime": "llama.cpp",
+    "runtimes_resolved": [
+      "llama.cpp"
+    ],
+    "model": "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
+    "all_models": false,
+    "samples": 3,
+    "max_tokens": 32,
+    "request_timeout_sec": null,
+    "server_start_timeout_sec": null,
+    "dataset_file": "dataset/turboquant_2504_19874v1.md",
+    "prompt_mode": false,
+    "skip_warmup": false,
+    "reasoning_mode": "off",
+    "cache_mode": "request",
+    "stream": "on",
+    "transport": "auto"
+  },
+  "files": {
+    "results_jsonl": "/tmp/llama-cpp-64k-s3.jsonl",
+    "artifacts_dir": "data/benchmark/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z"
+  },
+  "counts": {
+    "total": 3,
+    "success": 3,
+    "failure": 0,
+    "cache_prime_total": 1,
+    "cache_prime_success": 1,
+    "cache_prime_failure": 0
+  },
+  "setup_metrics": [
+    {
+      "runtime": "llama.cpp",
+      "model": "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
+      "model_key": "llama.cpp-qwen3.5-9b-q4-k-m",
+      "case_build_sec": 6.5494,
+      "download_or_check_sec": 0.0,
+      "server_start_sec": 3.0295,
+      "warmup_sec": 0.346,
+      "warmup_success": true,
+      "warmup_status_code": 200,
+      "reasoning_mode": "off",
+      "cache_mode": "request",
+      "transport": "openai-compat",
+      "stream": true,
+      "reasoning_supported": false,
+      "reasoning_format": null
+    }
+  ],
+  "runtime_summary": [
+    {
+      "runtime": "llama.cpp",
+      "count": 3,
+      "avg_total_time": 3.97,
+      "avg_tokens_per_second": 5.71,
+      "avg_prompt_tps": 261.343,
+      "avg_generation_tps": 23.806,
+      "avg_prefill_sec": 245.299,
+      "avg_ttft_sec": 2.802,
+      "avg_memory_gb": 10.31,
+      "avg_retrieval_score_float": 1.0,
+      "retrieval_exact_rate": 1.0,
+      "retrieval_exact_ci95_half_width": 0.0
+    }
+  ],
+  "runtime_context_summary": [
+    {
+      "runtime": "llama.cpp",
+      "context": "64k",
+      "count": 3,
+      "avg_total_time": 3.97,
+      "avg_tokens_per_second": 5.71,
+      "avg_prompt_tps": 261.343,
+      "avg_generation_tps": 23.806,
+      "avg_prefill_sec": 245.299,
+      "avg_ttft_sec": 2.802,
+      "avg_memory_gb": 10.31,
+      "avg_retrieval_score_float": 1.0,
+      "retrieval_exact_rate": 1.0,
+      "retrieval_exact_ci95_half_width": 0.0
+    }
+  ],
+  "results": [
+    {
+      "success": true,
+      "runtime": "llama.cpp",
+      "model": "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
+      "timestamp": "2026-04-16T11:36:53.251106+00:00",
+      "timing": {
+        "client": {
+          "total_time_sec": 245.2995,
+          "ttft_sec": 245.2574
+        },
+        "server": {
+          "total_time_sec": 245.091,
+          "ttft_sec": 244.8273
+        }
+      },
+      "usage": {
+        "server": {
+          "prompt_tokens": 63984,
+          "completion_tokens": 7,
+          "total_tokens": 63991
+        },
+        "normalized": {
+          "prompt_tokens": 63984,
+          "completion_tokens": 7,
+          "total_tokens": 63991
+        }
+      },
+      "throughput": {
+        "tokens_per_second": 0.0285,
+        "prompt_tps": 261.3434,
+        "generation_tps": 26.5491
+      },
+      "memory": {
+        "peak_gb": 10.3071,
+        "delta_gb": null
+      },
+      "reasoning": {
+        "requested": "off",
+        "effective": "off",
+        "supported": false,
+        "format": null,
+        "source": "cli"
+      },
+      "cache": {
+        "mode": "request",
+        "used": false,
+        "cache_id": null,
+        "source": "cli"
+      },
+      "transport": {
+        "mode": "openai-compat"
+      },
+      "stream": {
+        "enabled": true,
+        "actual_streaming": true
+      },
+      "sources": {
+        "usage.normalized.prompt_tokens": "server",
+        "usage.normalized.completion_tokens": "server",
+        "usage.normalized.total_tokens": "server",
+        "usage.server.prompt_tokens": "server",
+        "usage.server.completion_tokens": "server",
+        "usage.server.total_tokens": "server",
+        "timing.client.total_time_sec": "client_derived",
+        "timing.client.ttft_sec": "client_derived",
+        "timing.server.ttft_sec": "server",
+        "timing.server.total_time_sec": "server",
+        "throughput.prompt_tps": "server",
+        "throughput.generation_tps": "server",
+        "throughput.tokens_per_second": "client_derived",
+        "memory.peak_gb": "client_derived"
+      },
+      "artifacts": {
+        "payload_path": "data/benchmark/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z/llama.cpp-unsloth-Qwen3.5-9B-GGUF-Q4_K_M-64k-s0/payload.json",
+        "response_path": "data/benchmark/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z/llama.cpp-unsloth-Qwen3.5-9B-GGUF-Q4_K_M-64k-s0/response.json"
+      },
+      "dataset": "long",
+      "case_name": "long-64k-0",
+      "context_tokens_target": 64000,
+      "payload_source": "dataset/turboquant_2504_19874v1.md",
+      "prompt_cache_group": "long-64k",
+      "phase": "cache-prime",
+      "benchmark_included": false
+    },
+    {
+      "success": true,
+      "runtime": "llama.cpp",
+      "model": "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
+      "timestamp": "2026-04-16T11:36:57.265524+00:00",
+      "timing": {
+        "client": {
+          "total_time_sec": 3.9719,
+          "ttft_sec": 3.9068
+        },
+        "server": {
+          "total_time_sec": 3.7441,
+          "ttft_sec": 2.813
+        }
+      },
+      "usage": {
+        "server": {
+          "prompt_tokens": 542,
+          "completion_tokens": 22,
+          "total_tokens": 564
+        },
+        "normalized": {
+          "prompt_tokens": 542,
+          "completion_tokens": 22,
+          "total_tokens": 564
+        }
+      },
+      "throughput": {
+        "tokens_per_second": 5.5389,
+        "prompt_tps": 192.677,
+        "generation_tps": 23.627
+      },
+      "memory": {
+        "peak_gb": 10.3097,
+        "delta_gb": null
+      },
+      "reasoning": {
+        "requested": "off",
+        "effective": "off",
+        "supported": false,
+        "format": null,
+        "source": "cli"
+      },
+      "cache": {
+        "mode": "request",
+        "used": false,
+        "cache_id": null,
+        "source": "cli"
+      },
+      "transport": {
+        "mode": "openai-compat"
+      },
+      "stream": {
+        "enabled": true,
+        "actual_streaming": true
+      },
+      "sources": {
+        "usage.normalized.prompt_tokens": "server",
+        "usage.normalized.completion_tokens": "server",
+        "usage.normalized.total_tokens": "server",
+        "usage.server.prompt_tokens": "server",
+        "usage.server.completion_tokens": "server",
+        "usage.server.total_tokens": "server",
+        "timing.client.total_time_sec": "client_derived",
+        "timing.client.ttft_sec": "client_derived",
+        "timing.server.ttft_sec": "server",
+        "timing.server.total_time_sec": "server",
+        "throughput.prompt_tps": "server",
+        "throughput.generation_tps": "server",
+        "throughput.tokens_per_second": "client_derived",
+        "memory.peak_gb": "client_derived"
+      },
+      "artifacts": {
+        "payload_path": "data/benchmark/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z/llama.cpp-unsloth-Qwen3.5-9B-GGUF-Q4_K_M-64k-s1/payload.json",
+        "response_path": "data/benchmark/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z/llama.cpp-unsloth-Qwen3.5-9B-GGUF-Q4_K_M-64k-s1/response.json"
+      },
+      "retrieval": {
+        "expected": "NIAH-LONG-64K-S01-065522",
+        "predicted": "NIAH-LONG-64K-S01-065522",
+        "score_float": 1.0,
+        "exact": true
+      },
+      "dataset": "long",
+      "case_name": "long-64k-1",
+      "context_tokens_target": 64000,
+      "payload_source": "dataset/turboquant_2504_19874v1.md",
+      "needle_key": "long-needle-64k-s1",
+      "needle_value": "NIAH-LONG-64K-S01-065522",
+      "needle_position": 1734,
+      "prompt_cache_group": "long-64k",
+      "phase": "benchmark",
+      "benchmark_included": true
+    },
+    {
+      "success": true,
+      "runtime": "llama.cpp",
+      "model": "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
+      "timestamp": "2026-04-16T11:37:01.296484+00:00",
+      "timing": {
+        "client": {
+          "total_time_sec": 3.984,
+          "ttft_sec": 3.9403
+        },
+        "server": {
+          "total_time_sec": 3.7694,
+          "ttft_sec": 2.8101
+        }
+      },
+      "usage": {
+        "server": {
+          "prompt_tokens": 542,
+          "completion_tokens": 23,
+          "total_tokens": 565
+        },
+        "normalized": {
+          "prompt_tokens": 542,
+          "completion_tokens": 23,
+          "total_tokens": 565
+        }
+      },
+      "throughput": {
+        "tokens_per_second": 5.773,
+        "prompt_tps": 192.873,
+        "generation_tps": 23.9772
+      },
+      "memory": {
+        "peak_gb": 10.3101,
+        "delta_gb": null
+      },
+      "reasoning": {
+        "requested": "off",
+        "effective": "off",
+        "supported": false,
+        "format": null,
+        "source": "cli"
+      },
+      "cache": {
+        "mode": "request",
+        "used": false,
+        "cache_id": null,
+        "source": "cli"
+      },
+      "transport": {
+        "mode": "openai-compat"
+      },
+      "stream": {
+        "enabled": true,
+        "actual_streaming": true
+      },
+      "sources": {
+        "usage.normalized.prompt_tokens": "server",
+        "usage.normalized.completion_tokens": "server",
+        "usage.normalized.total_tokens": "server",
+        "usage.server.prompt_tokens": "server",
+        "usage.server.completion_tokens": "server",
+        "usage.server.total_tokens": "server",
+        "timing.client.total_time_sec": "client_derived",
+        "timing.client.ttft_sec": "client_derived",
+        "timing.server.ttft_sec": "server",
+        "timing.server.total_time_sec": "server",
+        "throughput.prompt_tps": "server",
+        "throughput.generation_tps": "server",
+        "throughput.tokens_per_second": "client_derived",
+        "memory.peak_gb": "client_derived"
+      },
+      "artifacts": {
+        "payload_path": "data/benchmark/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z/llama.cpp-unsloth-Qwen3.5-9B-GGUF-Q4_K_M-64k-s2/payload.json",
+        "response_path": "data/benchmark/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z/llama.cpp-unsloth-Qwen3.5-9B-GGUF-Q4_K_M-64k-s2/response.json"
+      },
+      "retrieval": {
+        "expected": "NIAH-LONG-64K-S02-066439",
+        "predicted": "NIAH-LONG-64K-S02-066439",
+        "score_float": 1.0,
+        "exact": true
+      },
+      "dataset": "long",
+      "case_name": "long-64k-2",
+      "context_tokens_target": 64000,
+      "payload_source": "dataset/turboquant_2504_19874v1.md",
+      "needle_key": "long-needle-64k-s2",
+      "needle_value": "NIAH-LONG-64K-S02-066439",
+      "needle_position": 3468,
+      "prompt_cache_group": "long-64k",
+      "phase": "benchmark",
+      "benchmark_included": true
+    },
+    {
+      "success": true,
+      "runtime": "llama.cpp",
+      "model": "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
+      "timestamp": "2026-04-16T11:37:05.296384+00:00",
+      "timing": {
+        "client": {
+          "total_time_sec": 3.9535,
+          "ttft_sec": 3.9105
+        },
+        "server": {
+          "total_time_sec": 3.7478,
+          "ttft_sec": 2.782
+        }
+      },
+      "usage": {
+        "server": {
+          "prompt_tokens": 542,
+          "completion_tokens": 23,
+          "total_tokens": 565
+        },
+        "normalized": {
+          "prompt_tokens": 542,
+          "completion_tokens": 23,
+          "total_tokens": 565
+        }
+      },
+      "throughput": {
+        "tokens_per_second": 5.8176,
+        "prompt_tps": 194.8213,
+        "generation_tps": 23.8148
+      },
+      "memory": {
+        "peak_gb": 10.3102,
+        "delta_gb": null
+      },
+      "reasoning": {
+        "requested": "off",
+        "effective": "off",
+        "supported": false,
+        "format": null,
+        "source": "cli"
+      },
+      "cache": {
+        "mode": "request",
+        "used": false,
+        "cache_id": null,
+        "source": "cli"
+      },
+      "transport": {
+        "mode": "openai-compat"
+      },
+      "stream": {
+        "enabled": true,
+        "actual_streaming": true
+      },
+      "sources": {
+        "usage.normalized.prompt_tokens": "server",
+        "usage.normalized.completion_tokens": "server",
+        "usage.normalized.total_tokens": "server",
+        "usage.server.prompt_tokens": "server",
+        "usage.server.completion_tokens": "server",
+        "usage.server.total_tokens": "server",
+        "timing.client.total_time_sec": "client_derived",
+        "timing.client.ttft_sec": "client_derived",
+        "timing.server.ttft_sec": "server",
+        "timing.server.total_time_sec": "server",
+        "throughput.prompt_tps": "server",
+        "throughput.generation_tps": "server",
+        "throughput.tokens_per_second": "client_derived",
+        "memory.peak_gb": "client_derived"
+      },
+      "artifacts": {
+        "payload_path": "data/benchmark/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z/llama.cpp-unsloth-Qwen3.5-9B-GGUF-Q4_K_M-64k-s3/payload.json",
+        "response_path": "data/benchmark/llama.cpp-turboquant-s3-mt32-cache-request/20260416T113236Z/llama.cpp-unsloth-Qwen3.5-9B-GGUF-Q4_K_M-64k-s3/response.json"
+      },
+      "retrieval": {
+        "expected": "NIAH-LONG-64K-S03-067356",
+        "predicted": "NIAH-LONG-64K-S03-067356",
+        "score_float": 1.0,
+        "exact": true
+      },
+      "dataset": "long",
+      "case_name": "long-64k-3",
+      "context_tokens_target": 64000,
+      "payload_source": "dataset/turboquant_2504_19874v1.md",
+      "needle_key": "long-needle-64k-s3",
+      "needle_value": "NIAH-LONG-64K-S03-067356",
+      "needle_position": 5202,
+      "prompt_cache_group": "long-64k",
+      "phase": "benchmark",
+      "benchmark_included": true
+    }
+  ]
+}
