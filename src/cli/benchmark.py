@@ -3,12 +3,18 @@ from __future__ import annotations
 import argparse
 import sys
 
-from src.bench.dataset import DEFAULT_DATASET_MD, normalize_dataset_mode, parse_context_list
+from src.bench.dataset import (
+    DEFAULT_DATASET_MD,
+    normalize_dataset_mode,
+    parse_context_list,
+)
 from src.bench.runner import run_benchmark
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="benchmark", description="Benchmark local LLM performance")
+    parser = argparse.ArgumentParser(
+        prog="benchmark", description="Benchmark local LLM performance"
+    )
     parser.add_argument(
         "--dataset",
         choices=["short", "long", "all", "quick", "context"],
@@ -38,9 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model",
         default=None,
-        help=(
-            "Model alias/key from configs/models.yaml or full model ID."
-        ),
+        help=("Model alias/key from configs/models.yaml or full model ID."),
     )
     parser.add_argument(
         "--samples",

@@ -6,7 +6,11 @@ import time
 from pathlib import Path
 from typing import Any, Dict
 
-from src.bench.composition import compose_benchmark_spec, default_context_k_for_runtime, select_models
+from src.bench.composition import (
+    compose_benchmark_spec,
+    default_context_k_for_runtime,
+    select_models,
+)
 from src.bench.dataset.cases import build_cases
 from src.bench.handlers import get_runtime_handler
 from src.bench.runner.naming import run_param
@@ -48,13 +52,17 @@ def _cache_prime_key(case: Dict[str, Any]) -> str:
         return prompt_cache_group.strip()
     dataset = str(case.get("dataset") or "dataset")
     context = case.get("context_tokens_target")
-    context_part = str(context) if isinstance(context, int) and context > 0 else "default"
+    context_part = (
+        str(context) if isinstance(context, int) and context > 0 else "default"
+    )
     return f"{dataset}:{context_part}"
 
 
 def _build_prime_case(case: Dict[str, Any], *, cache_mode: str) -> Dict[str, Any]:
     prime_case = dict(case)
-    prime_case["case_name"] = _prime_case_name(str(case.get("case_name") or "cache-prime"))
+    prime_case["case_name"] = _prime_case_name(
+        str(case.get("case_name") or "cache-prime")
+    )
     prime_case["phase"] = "cache-prime"
 
     # MLX prefill needs the real first suffix to preserve retrieval behavior.
@@ -69,8 +77,7 @@ def _build_prime_case(case: Dict[str, Any], *, cache_mode: str) -> Dict[str, Any
     prompt_prefix = case.get("prompt_prefix")
     if isinstance(prompt_prefix, str) and prompt_prefix:
         prime_suffix = (
-            "Question: Return exactly CACHE-PRIME-ONLY\n"
-            "Answer format: CACHE-PRIME-ONLY"
+            "Question: Return exactly CACHE-PRIME-ONLY\nAnswer format: CACHE-PRIME-ONLY"
         )
         prime_case["prompt_suffix"] = prime_suffix
         prime_case["prompt"] = f"{prompt_prefix}{prime_suffix}"
@@ -84,7 +91,9 @@ def _build_prime_case(case: Dict[str, Any], *, cache_mode: str) -> Dict[str, Any
     return prime_case
 
 
-def _build_cache_prime_cases(cases: list[Dict[str, Any]], cache_mode: str) -> list[Dict[str, Any]]:
+def _build_cache_prime_cases(
+    cases: list[Dict[str, Any]], cache_mode: str
+) -> list[Dict[str, Any]]:
     if cache_mode == "none":
         return []
     prime_cases: list[Dict[str, Any]] = []
@@ -174,7 +183,9 @@ def run_runtime_matrix(
                     )
                     continue
 
-                prime_cases = _build_cache_prime_cases(cases, cache_mode=spec.cache_mode)
+                prime_cases = _build_cache_prime_cases(
+                    cases, cache_mode=spec.cache_mode
+                )
                 for prime_case in prime_cases:
                     if state.fatal_error:
                         print(
@@ -182,7 +193,10 @@ def run_runtime_matrix(
                             file=sys.stderr,
                         )
                         break
-                    print(f"Priming cache {runtime}/{spec.model} [{prime_case['case_name']}]...", file=sys.stderr)
+                    print(
+                        f"Priming cache {runtime}/{spec.model} [{prime_case['case_name']}]...",
+                        file=sys.stderr,
+                    )
                     run_dir = experiment_dir / run_param(
                         runtime,
                         spec.model,
@@ -204,15 +218,27 @@ def run_runtime_matrix(
                     if prime_result.get("success"):
                         tps = row_throughput(prime_result, "prompt_tps")
                         total = row_total_time(prime_result)
-                        print(f"  ↺ cache prime prompt {tps:.2f} tps in {total:.2f}s", file=sys.stderr)
+                        print(
+                            f"  ↺ cache prime prompt {tps:.2f} tps in {total:.2f}s",
+                            file=sys.stderr,
+                        )
                     else:
-                        print(f"  ✗ cache prime failed: {prime_result.get('error', 'Unknown error')}", file=sys.stderr)
+                        print(
+                            f"  ✗ cache prime failed: {prime_result.get('error', 'Unknown error')}",
+                            file=sys.stderr,
+                        )
 
                 for case in cases:
                     if state.fatal_error:
-                        print(f"Skipping remaining cases for {runtime}/{spec.model}: {state.fatal_error}", file=sys.stderr)
+                        print(
+                            f"Skipping remaining cases for {runtime}/{spec.model}: {state.fatal_error}",
+                            file=sys.stderr,
+                        )
                         break
-                    print(f"Benchmarking {runtime}/{spec.model} [{case['case_name']}]...", file=sys.stderr)
+                    print(
+                        f"Benchmarking {runtime}/{spec.model} [{case['case_name']}]...",
+                        file=sys.stderr,
+                    )
                     run_dir = experiment_dir / run_param(
                         runtime,
                         spec.model,
@@ -243,7 +269,10 @@ def run_runtime_matrix(
                         total = row_total_time(result)
                         print(f"  ✓ {tps:.2f} tok/s in {total:.2f}s", file=sys.stderr)
                     else:
-                        print(f"  ✗ {result.get('error', 'Unknown error')}", file=sys.stderr)
+                        print(
+                            f"  ✗ {result.get('error', 'Unknown error')}",
+                            file=sys.stderr,
+                        )
             finally:
                 setup_metrics.append(setup_entry)
                 handler.teardown_model(spec=spec, state=state)

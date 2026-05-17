@@ -13,31 +13,76 @@ from src.bench.dataset import (
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="dataset", description="Dataset fetch/parse utility")
+    parser = argparse.ArgumentParser(
+        prog="dataset", description="Dataset fetch/parse utility"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     source_names = [source.name for source in load_dataset_sources()]
 
     fetch_parser = subparsers.add_parser("fetch", help="Fetch dataset HTML")
-    fetch_parser.add_argument("--source", choices=source_names, default=None, help="Source key from dataset config")
-    fetch_parser.add_argument("--url", default=None, help="Source URL (overrides source config)")
-    fetch_parser.add_argument("--output-html", default=None, help="Output HTML path (overrides source config)")
-    fetch_parser.add_argument("--timeout", type=int, default=60, help="HTTP timeout seconds")
-
-    parse_parser = subparsers.add_parser("parse", help="Parse HTML into markdown dataset")
-    parse_parser.add_argument("--source", choices=source_names, default=None, help="Source key from dataset config")
-    parse_parser.add_argument("--input-html", default=None, help="Input HTML path (overrides source config)")
-    parse_parser.add_argument("--output-md", default=None, help="Output markdown path (overrides source config)")
-    parse_parser.add_argument("--source-url", default=None, help="Source URL metadata (overrides source config)")
-
-    fetch_parse_parser = subparsers.add_parser("fetch-parse", help="Fetch URL and parse to markdown")
-    fetch_parse_parser.add_argument(
-        "--source", choices=source_names, default=None, help="Source key from dataset config"
+    fetch_parser.add_argument(
+        "--source",
+        choices=source_names,
+        default=None,
+        help="Source key from dataset config",
     )
-    fetch_parse_parser.add_argument("--url", default=None, help="Source URL (overrides source config)")
-    fetch_parse_parser.add_argument("--output-html", default=None, help="Output HTML path (overrides source config)")
-    fetch_parse_parser.add_argument("--output-md", default=None, help="Output markdown path (overrides source config)")
-    fetch_parse_parser.add_argument("--timeout", type=int, default=60, help="HTTP timeout seconds")
+    fetch_parser.add_argument(
+        "--url", default=None, help="Source URL (overrides source config)"
+    )
+    fetch_parser.add_argument(
+        "--output-html", default=None, help="Output HTML path (overrides source config)"
+    )
+    fetch_parser.add_argument(
+        "--timeout", type=int, default=60, help="HTTP timeout seconds"
+    )
+
+    parse_parser = subparsers.add_parser(
+        "parse", help="Parse HTML into markdown dataset"
+    )
+    parse_parser.add_argument(
+        "--source",
+        choices=source_names,
+        default=None,
+        help="Source key from dataset config",
+    )
+    parse_parser.add_argument(
+        "--input-html", default=None, help="Input HTML path (overrides source config)"
+    )
+    parse_parser.add_argument(
+        "--output-md",
+        default=None,
+        help="Output markdown path (overrides source config)",
+    )
+    parse_parser.add_argument(
+        "--source-url",
+        default=None,
+        help="Source URL metadata (overrides source config)",
+    )
+
+    fetch_parse_parser = subparsers.add_parser(
+        "fetch-parse", help="Fetch URL and parse to markdown"
+    )
+    fetch_parse_parser.add_argument(
+        "--source",
+        choices=source_names,
+        default=None,
+        help="Source key from dataset config",
+    )
+    fetch_parse_parser.add_argument(
+        "--url", default=None, help="Source URL (overrides source config)"
+    )
+    fetch_parse_parser.add_argument(
+        "--output-html", default=None, help="Output HTML path (overrides source config)"
+    )
+    fetch_parse_parser.add_argument(
+        "--output-md",
+        default=None,
+        help="Output markdown path (overrides source config)",
+    )
+    fetch_parse_parser.add_argument(
+        "--timeout", type=int, default=60, help="HTTP timeout seconds"
+    )
 
     return parser
 

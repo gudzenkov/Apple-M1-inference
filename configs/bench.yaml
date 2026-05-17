@@ -44,6 +44,22 @@ infra:
         - prefill
         - none
 
+    vllm-metal:
+      managed_server: true
+      model_runtime: vllm-metal
+      chat_url_openai: http://127.0.0.1:8000/v1/chat/completions
+      health_url: http://127.0.0.1:8000/v1/models
+      port: 8000
+      start_cmd:
+        - scripts/start-vllm-metal-qwen36.sh
+      log_file: logs/vllm-metal-server.log
+      process_hint: vllm
+      max_context_tokens: 32768
+      supported_transports:
+        - openai-compat
+      supported_cache_modes:
+        - none
+
     llama.cpp:
       managed_server: true
       model_runtime: llama.cpp
@@ -103,6 +119,14 @@ defaults:
       stream: "on"
       request_timeout_sec: 2000
       server_start_timeout_sec: 300
+
+    vllm-metal:
+      reasoning_mode: "off"
+      cache_mode: none
+      transport: openai-compat
+      stream: "on"
+      request_timeout_sec: 2000
+      server_start_timeout_sec: 1800
 
     llama.cpp:
       reasoning_mode: "off"

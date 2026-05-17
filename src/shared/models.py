@@ -68,7 +68,9 @@ def _runtime_matches(entry_runtime: str, runtime: str | None) -> bool:
 
 
 @lru_cache(maxsize=4)
-def _load_models_bundle(path: Path = MODEL_ALIASES_PATH) -> tuple[List[ModelEntry], Dict[str, ProfileEntry]]:
+def _load_models_bundle(
+    path: Path = MODEL_ALIASES_PATH,
+) -> tuple[List[ModelEntry], Dict[str, ProfileEntry]]:
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     root = _expect_mapping(raw, f"{path}")
 
@@ -83,18 +85,20 @@ def _load_models_bundle(path: Path = MODEL_ALIASES_PATH) -> tuple[List[ModelEntr
         family = str(family_key).strip().lower()
         if not family:
             raise RuntimeError(f"{path}: family key must be non-empty")
-        family_conf = _expect_mapping(family_value, f"{path}: defaults.families.{family}")
+        family_conf = _expect_mapping(
+            family_value, f"{path}: defaults.families.{family}"
+        )
 
         capabilities = family_conf.get("capabilities") or {}
-        family_defaults_caps[family] = dict(_expect_mapping(
-            capabilities,
-            f"{path}: defaults.families.{family}.capabilities",
-        ))
+        family_defaults_caps[family] = dict(
+            _expect_mapping(
+                capabilities,
+                f"{path}: defaults.families.{family}.capabilities",
+            )
+        )
 
         runtime_defaults = {
-            key: value
-            for key, value in family_conf.items()
-            if key != "capabilities"
+            key: value for key, value in family_conf.items() if key != "capabilities"
         }
         family_defaults_runtime[family] = dict(runtime_defaults)
 
@@ -126,12 +130,18 @@ def _load_models_bundle(path: Path = MODEL_ALIASES_PATH) -> tuple[List[ModelEntr
         capabilities_conf = profile_conf.get("capabilities") or {}
         reasoning_conf = profile_conf.get("reasoning") or {}
 
-        defaults_dict = dict(_expect_mapping(defaults_conf, f"{path}: profiles.{profile_key}.defaults"))
-        capabilities_dict = dict(_expect_mapping(
-            capabilities_conf,
-            f"{path}: profiles.{profile_key}.capabilities",
-        ))
-        reasoning_dict = dict(_expect_mapping(reasoning_conf, f"{path}: profiles.{profile_key}.reasoning"))
+        defaults_dict = dict(
+            _expect_mapping(defaults_conf, f"{path}: profiles.{profile_key}.defaults")
+        )
+        capabilities_dict = dict(
+            _expect_mapping(
+                capabilities_conf,
+                f"{path}: profiles.{profile_key}.capabilities",
+            )
+        )
+        reasoning_dict = dict(
+            _expect_mapping(reasoning_conf, f"{path}: profiles.{profile_key}.reasoning")
+        )
 
         merged_caps = dict(family_defaults_caps.get(family, {}))
         merged_caps.update(capabilities_dict)
@@ -182,8 +192,12 @@ def _load_models_bundle(path: Path = MODEL_ALIASES_PATH) -> tuple[List[ModelEntr
         else:
             model_map = _expect_mapping(model_conf, f"{item_context}.{key}.model")
             model_name = str(model_map.get("name") or "").strip()
-            size = _as_int_or_none(model_map.get("size"), f"{item_context}.{key}.model.size")
-            quant = _as_int_or_none(model_map.get("quant"), f"{item_context}.{key}.model.quant")
+            size = _as_int_or_none(
+                model_map.get("size"), f"{item_context}.{key}.model.size"
+            )
+            quant = _as_int_or_none(
+                model_map.get("quant"), f"{item_context}.{key}.model.quant"
+            )
         if not model_name:
             raise RuntimeError(f"{item_context}.{key}.model.name must be non-empty")
 
@@ -205,7 +219,10 @@ def _load_models_bundle(path: Path = MODEL_ALIASES_PATH) -> tuple[List[ModelEntr
         if profile:
             profile_entry = profiles.get(profile)
             if profile_entry is not None:
-                if profile_entry["runtime"] != runtime or profile_entry["family"] != family:
+                if (
+                    profile_entry["runtime"] != runtime
+                    or profile_entry["family"] != family
+                ):
                     raise RuntimeError(
                         f"{item_context}.{key}.profile '{profile}' runtime/family mismatch"
                     )
@@ -222,7 +239,9 @@ def _load_models_bundle(path: Path = MODEL_ALIASES_PATH) -> tuple[List[ModelEntr
         aliases = list(dict.fromkeys(aliases))
 
         caps_conf = conf.get("capabilities") or {}
-        caps_map = dict(_expect_mapping(caps_conf, f"{item_context}.{key}.capabilities"))
+        caps_map = dict(
+            _expect_mapping(caps_conf, f"{item_context}.{key}.capabilities")
+        )
 
         merged_caps = dict(family_defaults_caps.get(family, {}))
         profile_caps = profiles.get(profile, {}).get("capabilities", {})  # type: ignore[union-attr]
@@ -232,9 +251,17 @@ def _load_models_bundle(path: Path = MODEL_ALIASES_PATH) -> tuple[List[ModelEntr
 
         reasoning_from_profile = profiles.get(profile, {}).get("reasoning", {})  # type: ignore[union-attr]
         if isinstance(reasoning_from_profile, Mapping):
-            if "supported" in reasoning_from_profile and "reasoning_supported" not in merged_caps:
-                merged_caps["reasoning_supported"] = bool(reasoning_from_profile.get("supported"))
-            if "format" in reasoning_from_profile and "reasoning_format" not in merged_caps:
+            if (
+                "supported" in reasoning_from_profile
+                and "reasoning_supported" not in merged_caps
+            ):
+                merged_caps["reasoning_supported"] = bool(
+                    reasoning_from_profile.get("supported")
+                )
+            if (
+                "format" in reasoning_from_profile
+                and "reasoning_format" not in merged_caps
+            ):
                 merged_caps["reasoning_format"] = reasoning_from_profile.get("format")
 
         entries.append(
@@ -280,7 +307,9 @@ def load_profiles(path: Path = MODEL_ALIASES_PATH) -> Dict[str, ProfileEntry]:
 
 
 @lru_cache(maxsize=16)
-def load_model_aliases(path: Path = MODEL_ALIASES_PATH, runtime: str | None = None) -> Dict[str, str]:
+def load_model_aliases(
+    path: Path = MODEL_ALIASES_PATH, runtime: str | None = None
+) -> Dict[str, str]:
     aliases: Dict[str, str] = {}
     for entry in load_models(path):
         if not _runtime_matches(entry["runtime"], runtime):
@@ -293,7 +322,9 @@ def load_model_aliases(path: Path = MODEL_ALIASES_PATH, runtime: str | None = No
             aliases[alias] = entry["model"]
 
     if runtime is not None and not aliases:
-        raise RuntimeError(f"No model aliases loaded for runtime '{runtime}' from {path}")
+        raise RuntimeError(
+            f"No model aliases loaded for runtime '{runtime}' from {path}"
+        )
 
     return aliases
 
@@ -339,7 +370,9 @@ def get_model_entry(model: str, runtime: str | None = None) -> ModelEntry:
     resolved_model = resolve_model_reference(model, runtime=runtime)
     candidates = [entry for entry in load_models() if entry["model"] == resolved_model]
     if runtime is not None:
-        runtime_candidates = [entry for entry in candidates if _runtime_matches(entry["runtime"], runtime)]
+        runtime_candidates = [
+            entry for entry in candidates if _runtime_matches(entry["runtime"], runtime)
+        ]
         if runtime_candidates:
             return runtime_candidates[0]
     if len(candidates) == 1:
@@ -352,12 +385,16 @@ def get_model_entry(model: str, runtime: str | None = None) -> ModelEntry:
     raise ValueError(f"Model '{model}' is not configured in {MODEL_ALIASES_PATH}")
 
 
-def get_profile_for_model(model: str, runtime: str | None = None) -> ProfileEntry | None:
+def get_profile_for_model(
+    model: str, runtime: str | None = None
+) -> ProfileEntry | None:
     entry = get_model_entry(model, runtime=runtime)
     return load_profiles().get(entry["profile"])
 
 
-def get_capabilities_for_model(model: str, runtime: str | None = None) -> Dict[str, Any]:
+def get_capabilities_for_model(
+    model: str, runtime: str | None = None
+) -> Dict[str, Any]:
     entry = get_model_entry(model, runtime=runtime)
     return dict(entry.get("capabilities", {}))
 
@@ -367,7 +404,9 @@ def resolve_model_reference(model: str, runtime: str | None = None) -> str:
     if not model_ref:
         raise ValueError("Model reference is empty")
 
-    runtime_models = set(get_models_for_runtime(runtime)) if runtime is not None else None
+    runtime_models = (
+        set(get_models_for_runtime(runtime)) if runtime is not None else None
+    )
     all_models = {entry["model"] for entry in load_models()}
 
     if runtime_models is not None and not runtime_models:

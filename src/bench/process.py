@@ -10,6 +10,8 @@ from typing import Any, Dict, List, Set
 
 import requests
 
+from src.shared.models import get_model_entry
+
 
 def _reasoning_payload(reasoning_mode: str) -> dict[str, str] | None:
     mode = str(reasoning_mode or "off").strip().lower()
@@ -109,7 +111,9 @@ def stop_mlx_servers(verbose: bool = True) -> None:
         return
 
     if verbose:
-        print(f"Stopping existing MLX server processes: {sorted(pids)}", file=sys.stderr)
+        print(
+            f"Stopping existing MLX server processes: {sorted(pids)}", file=sys.stderr
+        )
 
     failed: List[int] = []
     for pid in sorted(pids):
@@ -132,7 +136,10 @@ def stop_llama_cpp_servers(port: int, verbose: bool = True) -> None:
         return
 
     if verbose:
-        print(f"Stopping existing llama.cpp server processes on port {port}: {sorted(pids)}", file=sys.stderr)
+        print(
+            f"Stopping existing llama.cpp server processes on port {port}: {sorted(pids)}",
+            file=sys.stderr,
+        )
 
     failed: List[int] = []
     for pid in sorted(pids):
@@ -140,7 +147,9 @@ def stop_llama_cpp_servers(port: int, verbose: bool = True) -> None:
             failed.append(pid)
 
     if failed:
-        raise RuntimeError(f"Failed to stop running llama.cpp server processes: {failed}")
+        raise RuntimeError(
+            f"Failed to stop running llama.cpp server processes: {failed}"
+        )
 
     if pids_for_listen_port(port):
         raise RuntimeError(f"Port {port} is still occupied after stop attempts")
@@ -171,7 +180,9 @@ def _render_start_cmd(start_cmd: List[str], *, model: str, port: int) -> List[st
         try:
             rendered.append(arg.format_map(variables))
         except KeyError as exc:
-            raise RuntimeError(f"Unknown placeholder in managed server command: {exc}") from exc
+            raise RuntimeError(
+                f"Unknown placeholder in managed server command: {exc}"
+            ) from exc
     return rendered
 
 
@@ -188,11 +199,26 @@ def start_managed_server(
     log_handle = open(log_path, "a", encoding="utf-8")
 
     env = os.environ.copy()
-    env["HUGGINGFACE_MODEL"] = model
-    env["MODEL_ID"] = model
+    runtime_model = model
+    try:
+        model_entry = get_model_entry(model, runtime=runtime)
+        source_model = model_entry.get("capabilities", {}).get("source_model")
+        if isinstance(source_model, str) and source_model.strip():
+            runtime_model = source_model.strip()
+    except Exception:  # noqa: BLE001
+        runtime_model = model
+
+    env["HUGGINGFACE_MODEL"] = runtime_model
+    env["MODEL_ID"] = runtime_model
+    env["QWEN_CHAT_MODEL_ID"] = runtime_model
+    env["QWEN_CHAT_SERVED_MODEL"] = model
     env["HOST"] = "127.0.0.1"
     env["PORT"] = str(config["port"])
-    start_cmd = _render_start_cmd(config["start_cmd"], model=model, port=int(config["port"]))
+    start_cmd = _render_start_cmd(
+        config["start_cmd"],
+        model=runtime_model,
+        port=int(config["port"]),
+    )
 
     print(f"Starting {runtime} server for model {model}...", file=sys.stderr)
     proc = subprocess.Popen(
@@ -233,7 +259,9 @@ def stop_managed_process(proc: subprocess.Popen) -> None:
         log_handle.close()
 
 
-def warmup_model(chat_url: str, model: str, reasoning_mode: str = "off") -> Dict[str, Any]:
+def warmup_model(
+    chat_url: str, model: str, reasoning_mode: str = "off"
+) -> Dict[str, Any]:
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": "Hi"}],

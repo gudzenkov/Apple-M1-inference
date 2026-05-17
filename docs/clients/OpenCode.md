@@ -1,6 +1,6 @@
 # OpenCode Integration
 
-OpenCode expects an OpenAI-compatible provider description under `~/.config/opencode/opencode.json`. The repository already includes `opencode.json` with the recommended MLX endpoint and models.
+OpenCode expects an OpenAI-compatible provider description under `~/.config/opencode/opencode.json`. The repository already includes `opencode.json` with the recommended local Qwen endpoint and models.
 
 ## Installation
 
@@ -11,22 +11,25 @@ ln -sf opencode.json ~/.config/opencode/opencode.json
 
 Reload or restart OpenCode after changing the config.
 
-## MLX-specific setup
+## Local Qwen setup
 
 ### Configuration
-Add this provider block to `~/.config/opencode/opencode.json` if you want an explicit MLX-only setup:
+Add this provider block to `~/.config/opencode/opencode.json` if you want an explicit local setup:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
-    "mlx-local": {
+    "qwen-local": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "MLX Local",
+      "name": "Qwen Local",
       "options": {
         "baseURL": "http://localhost:8000/v1"
       },
       "models": {
+        "qwen3.6-35b-a3b": {
+          "name": "Qwen3.6-35B-A3B vLLM-Metal"
+        },
         "mlx-community/Qwen3.5-9B-OptiQ-4bit": {
           "name": "Qwen3.5-9B-OptiQ-4bit"
         },
@@ -43,23 +46,23 @@ Add this provider block to `~/.config/opencode/opencode.json` if you want an exp
 ```
 
 ### Usage
-1. Start the MLX server (see [MLX OpenAI-Compatible Servers](../servers/MLX.md#openai-compatible-servers)).
+1. Start the vLLM-Metal server (see [vLLM-Metal Qwen3.6 Server](../servers/VLLM-Metal.md)).
 2. Restart OpenCode.
-3. Select "MLX Local" from the model dropdown.
+3. Select "Qwen Local" from the model dropdown.
 4. Start coding with local AI assistance.
 
 ## Provider highlights
 
-### MLX Local
-- **Base URL:** `http://localhost:8000/v1` (or `http://localhost:8080/v1` when running the TurboQuant Optiq server).
-- **Models:** Keep this list aligned with `configs/models.yaml` for `runtime: mlx`.
-- **Notes:** The config uses the OpenAI-compatible SDK and is intentionally MLX-only in this repo.
+### Qwen Local
+- **Base URL:** `http://localhost:8000/v1` on host, or `http://host.docker.internal:8000/v1` from a devcontainer.
+- **Models:** `qwen3.6-35b-a3b` for the recommended vLLM-Metal server; MLX model IDs remain usable when the MLX server is running on the same port.
+- **Notes:** The config uses the OpenAI-compatible SDK. Tool calls are emitted by the model; OpenCode/client code still executes the tools.
 
 ## Verifying the connection
 
-1. Make sure the relevant server is running (`mlx-openai-server` or `mlx-openai-optiq-server`).
+1. Make sure the relevant server is running (`scripts/start-vllm-metal-qwen36.sh` for the recommended path).
 2. Run `curl http://<server>/v1/models` to confirm the endpoint responds.
-3. Open OpenCode and verify the provider dropdown now lists “MLX Local”.
+3. Open OpenCode and verify the provider dropdown now lists “Qwen Local”.
 
 ## Tips
 

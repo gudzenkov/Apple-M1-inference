@@ -33,7 +33,9 @@ def experiment_group(args: Any) -> str:
     else:
         dataset_part = "short"
     cache_part = slug(f"cache-{getattr(args, 'cache_mode', 'auto')}")
-    return slug(f"{runtime_part}-{dataset_part}-s{args.samples}-mt{args.max_tokens}-{cache_part}")
+    return slug(
+        f"{runtime_part}-{dataset_part}-s{args.samples}-mt{args.max_tokens}-{cache_part}"
+    )
 
 
 def sample_id(case_name: str) -> str:
@@ -55,7 +57,9 @@ def model_label(model_id: str, runtime: str) -> str:
     return slug(model_id)
 
 
-def run_param(runtime: str, model: str, case: Dict[str, Any], default_context_k: int) -> str:
+def run_param(
+    runtime: str, model: str, case: Dict[str, Any], default_context_k: int
+) -> str:
     model_part = model_label(model, runtime)
     context_part = context_label(case, default_context_k=default_context_k)
     sample_part = sample_id(str(case.get("case_name", "s1")))

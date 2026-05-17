@@ -76,7 +76,9 @@ def _as_non_empty_str(value: Any, *, field: str, context: str) -> str:
     return value.strip()
 
 
-def _as_optional_non_empty_str(value: Any, *, field: str, context: str) -> Optional[str]:
+def _as_optional_non_empty_str(
+    value: Any, *, field: str, context: str
+) -> Optional[str]:
     if value is None:
         return None
     if not isinstance(value, str) or not value.strip():
@@ -115,7 +117,9 @@ def _normalize_mode(value: Any, valid: set[str], *, field: str, context: str) ->
     return mode
 
 
-def _as_mode_from_bool_or_string(value: Any, *, field: str, context: str, valid: set[str]) -> str:
+def _as_mode_from_bool_or_string(
+    value: Any, *, field: str, context: str, valid: set[str]
+) -> str:
     if isinstance(value, bool):
         mode = "on" if value else "off"
         if mode in valid:
@@ -149,48 +153,98 @@ def _as_command_list(value: Any, *, field: str, context: str) -> List[str]:
     return cmd
 
 
-def _parse_runtime_infra(runtime: str, raw: Mapping[str, Any], context: str) -> Dict[str, Any]:
-    managed_server = _as_bool(raw.get("managed_server"), field="managed_server", context=context)
-    model_runtime = _as_non_empty_str(raw.get("model_runtime"), field="model_runtime", context=context).lower()
+def _parse_runtime_infra(
+    runtime: str, raw: Mapping[str, Any], context: str
+) -> Dict[str, Any]:
+    managed_server = _as_bool(
+        raw.get("managed_server"), field="managed_server", context=context
+    )
+    model_runtime = _as_non_empty_str(
+        raw.get("model_runtime"), field="model_runtime", context=context
+    ).lower()
     if model_runtime != runtime:
-        raise RuntimeError(f"{context}.model_runtime must match runtime key '{runtime}'")
+        raise RuntimeError(
+            f"{context}.model_runtime must match runtime key '{runtime}'"
+        )
 
-    health_url = _as_non_empty_str(raw.get("health_url"), field="health_url", context=context)
-    process_hint = _as_optional_non_empty_str(raw.get("process_hint"), field="process_hint", context=context)
-    max_context_tokens = _as_int(raw.get("max_context_tokens"), field="max_context_tokens", context=context)
+    health_url = _as_non_empty_str(
+        raw.get("health_url"), field="health_url", context=context
+    )
+    process_hint = _as_optional_non_empty_str(
+        raw.get("process_hint"), field="process_hint", context=context
+    )
+    max_context_tokens = _as_int(
+        raw.get("max_context_tokens"), field="max_context_tokens", context=context
+    )
 
-    supported_transports = set(_as_str_list(raw.get("supported_transports"), field="supported_transports", context=context))
+    supported_transports = set(
+        _as_str_list(
+            raw.get("supported_transports"),
+            field="supported_transports",
+            context=context,
+        )
+    )
     invalid_transports = sorted(supported_transports - CONCRETE_TRANSPORT_MODES)
     if invalid_transports:
-        raise RuntimeError(f"{context}.supported_transports has invalid values: {invalid_transports}")
+        raise RuntimeError(
+            f"{context}.supported_transports has invalid values: {invalid_transports}"
+        )
 
-    supported_cache_modes = set(_as_str_list(raw.get("supported_cache_modes"), field="supported_cache_modes", context=context))
+    supported_cache_modes = set(
+        _as_str_list(
+            raw.get("supported_cache_modes"),
+            field="supported_cache_modes",
+            context=context,
+        )
+    )
     invalid_cache_modes = sorted(supported_cache_modes - CONCRETE_CACHE_MODES)
     if invalid_cache_modes:
-        raise RuntimeError(f"{context}.supported_cache_modes has invalid values: {invalid_cache_modes}")
+        raise RuntimeError(
+            f"{context}.supported_cache_modes has invalid values: {invalid_cache_modes}"
+        )
 
-    chat_url_openai = _as_optional_non_empty_str(raw.get("chat_url_openai"), field="chat_url_openai", context=context)
+    chat_url_openai = _as_optional_non_empty_str(
+        raw.get("chat_url_openai"), field="chat_url_openai", context=context
+    )
     if "openai-compat" in supported_transports and chat_url_openai is None:
-        raise RuntimeError(f"{context}.chat_url_openai is required for openai-compat transport")
+        raise RuntimeError(
+            f"{context}.chat_url_openai is required for openai-compat transport"
+        )
 
-    cache_prefill_url = _as_optional_non_empty_str(raw.get("cache_prefill_url"), field="cache_prefill_url", context=context)
-    cache_clear_url = _as_optional_non_empty_str(raw.get("cache_clear_url"), field="cache_clear_url", context=context)
-    if "prefill" in supported_cache_modes and (cache_prefill_url is None or cache_clear_url is None):
+    cache_prefill_url = _as_optional_non_empty_str(
+        raw.get("cache_prefill_url"), field="cache_prefill_url", context=context
+    )
+    cache_clear_url = _as_optional_non_empty_str(
+        raw.get("cache_clear_url"), field="cache_clear_url", context=context
+    )
+    if "prefill" in supported_cache_modes and (
+        cache_prefill_url is None or cache_clear_url is None
+    ):
         raise RuntimeError(
             f"{context} must define cache_prefill_url and cache_clear_url when prefill cache mode is supported"
         )
 
     port = _as_optional_int(raw.get("port"), field="port", context=context)
     start_cmd_raw = raw.get("start_cmd")
-    start_cmd = _as_command_list(start_cmd_raw, field="start_cmd", context=context) if start_cmd_raw is not None else None
-    log_file = _as_optional_non_empty_str(raw.get("log_file"), field="log_file", context=context)
+    start_cmd = (
+        _as_command_list(start_cmd_raw, field="start_cmd", context=context)
+        if start_cmd_raw is not None
+        else None
+    )
+    log_file = _as_optional_non_empty_str(
+        raw.get("log_file"), field="log_file", context=context
+    )
     if managed_server:
         if port is None:
             raise RuntimeError(f"{context}.port is required for managed_server=true")
         if start_cmd is None:
-            raise RuntimeError(f"{context}.start_cmd is required for managed_server=true")
+            raise RuntimeError(
+                f"{context}.start_cmd is required for managed_server=true"
+            )
         if log_file is None:
-            raise RuntimeError(f"{context}.log_file is required for managed_server=true")
+            raise RuntimeError(
+                f"{context}.log_file is required for managed_server=true"
+            )
 
     return {
         "managed_server": managed_server,
@@ -248,7 +302,9 @@ def _normalize_runtime_policy(raw: Mapping[str, Any], context: str) -> Dict[str,
     )
 
     if "request_options" in raw:
-        req_options = _expect_mapping(raw.get("request_options"), f"{context}.request_options")
+        req_options = _expect_mapping(
+            raw.get("request_options"), f"{context}.request_options"
+        )
         out["request_options"] = dict(req_options)
 
     return out
@@ -285,7 +341,9 @@ def _normalize_model_override(raw: Mapping[str, Any], context: str) -> Dict[str,
             valid=CONCRETE_STREAM_MODES,
         )
 
-    request_timeout_sec = _as_optional_int(raw.get("request_timeout_sec"), field="request_timeout_sec", context=context)
+    request_timeout_sec = _as_optional_int(
+        raw.get("request_timeout_sec"), field="request_timeout_sec", context=context
+    )
     if request_timeout_sec is not None:
         out["request_timeout_sec"] = request_timeout_sec
 
@@ -298,7 +356,9 @@ def _normalize_model_override(raw: Mapping[str, Any], context: str) -> Dict[str,
         out["server_start_timeout_sec"] = server_start_timeout_sec
 
     if "request_options" in raw:
-        req_options = _expect_mapping(raw.get("request_options"), f"{context}.request_options")
+        req_options = _expect_mapping(
+            raw.get("request_options"), f"{context}.request_options"
+        )
         out["request_options"] = dict(req_options)
 
     return out
@@ -307,12 +367,16 @@ def _normalize_model_override(raw: Mapping[str, Any], context: str) -> Dict[str,
 @lru_cache(maxsize=1)
 def _load_bench_config(
     path: Path = BENCH_CONFIG_PATH,
-) -> tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]]]:
+) -> tuple[
+    Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]]
+]:
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     root = _expect_mapping(raw, f"{path}")
 
     infra_root = _expect_mapping(root.get("infra") or {}, f"{path}: infra")
-    infra_runtimes_raw = _expect_mapping(infra_root.get("runtimes") or {}, f"{path}: infra.runtimes")
+    infra_runtimes_raw = _expect_mapping(
+        infra_root.get("runtimes") or {}, f"{path}: infra.runtimes"
+    )
     if not infra_runtimes_raw:
         raise RuntimeError(f"{path}: infra.runtimes must be a non-empty mapping")
 
@@ -322,24 +386,38 @@ def _load_bench_config(
         if not runtime:
             raise RuntimeError(f"{path}: infra.runtimes has empty runtime key")
         if runtime in runtime_infra:
-            raise RuntimeError(f"{path}: duplicate runtime in infra.runtimes: {runtime}")
+            raise RuntimeError(
+                f"{path}: duplicate runtime in infra.runtimes: {runtime}"
+            )
         runtime_map = _expect_mapping(infra_raw, f"{path}: infra.runtimes.{runtime}")
-        runtime_infra[runtime] = _parse_runtime_infra(runtime, runtime_map, f"{path}: infra.runtimes.{runtime}")
+        runtime_infra[runtime] = _parse_runtime_infra(
+            runtime, runtime_map, f"{path}: infra.runtimes.{runtime}"
+        )
 
     defaults_raw = _expect_mapping(root.get("defaults") or {}, f"{path}: defaults")
-    runtimes_raw = _expect_mapping(defaults_raw.get("runtimes") or {}, f"{path}: defaults.runtimes")
+    runtimes_raw = _expect_mapping(
+        defaults_raw.get("runtimes") or {}, f"{path}: defaults.runtimes"
+    )
 
     runtime_defaults: Dict[str, Dict[str, Any]] = {}
     for runtime, runtime_raw in runtimes_raw.items():
         runtime_key = str(runtime).strip().lower()
         if runtime_key not in runtime_infra:
-            raise RuntimeError(f"{path}: defaults.runtimes.{runtime_key} has no matching infra.runtimes entry")
-        runtime_map = _expect_mapping(runtime_raw, f"{path}: defaults.runtimes.{runtime_key}")
-        runtime_defaults[runtime_key] = _normalize_runtime_policy(runtime_map, f"{path}: defaults.runtimes.{runtime_key}")
+            raise RuntimeError(
+                f"{path}: defaults.runtimes.{runtime_key} has no matching infra.runtimes entry"
+            )
+        runtime_map = _expect_mapping(
+            runtime_raw, f"{path}: defaults.runtimes.{runtime_key}"
+        )
+        runtime_defaults[runtime_key] = _normalize_runtime_policy(
+            runtime_map, f"{path}: defaults.runtimes.{runtime_key}"
+        )
 
     missing_policy = sorted(set(runtime_infra.keys()) - set(runtime_defaults.keys()))
     if missing_policy:
-        raise RuntimeError(f"{path}: missing defaults.runtimes entries for runtimes: {missing_policy}")
+        raise RuntimeError(
+            f"{path}: missing defaults.runtimes entries for runtimes: {missing_policy}"
+        )
 
     model_overrides_raw = _expect_mapping(root.get("models") or {}, f"{path}: models")
     model_overrides: Dict[str, Dict[str, Any]] = {}
@@ -380,7 +458,9 @@ def _stream_mode_to_bool(mode: str) -> bool:
     return mode == "on"
 
 
-def _lookup_model_override(model_entry: ModelEntry, overrides: Mapping[str, Dict[str, Any]]) -> Dict[str, Any]:
+def _lookup_model_override(
+    model_entry: ModelEntry, overrides: Mapping[str, Dict[str, Any]]
+) -> Dict[str, Any]:
     refs = [
         model_entry["key"].lower(),
         model_entry["model"].lower(),
@@ -398,7 +478,9 @@ def list_available_runtimes() -> List[str]:
     return sorted(runtime_infra.keys())
 
 
-def resolve_runtimes(runtime_arg: str, model_arg: Optional[str], all_models: bool) -> List[str]:
+def resolve_runtimes(
+    runtime_arg: str, model_arg: Optional[str], all_models: bool
+) -> List[str]:
     runtime_infra, _, _ = _load_bench_config()
     configured_runtimes = set(runtime_infra.keys())
 
@@ -411,7 +493,9 @@ def resolve_runtimes(runtime_arg: str, model_arg: Optional[str], all_models: boo
     if isinstance(model_arg, str) and model_arg.strip():
         resolved_runtime = resolve_runtime_for_model_reference(model_arg)
         if resolved_runtime not in configured_runtimes:
-            raise ValueError(f"Runtime '{resolved_runtime}' for model '{model_arg}' is not configured in bench infra")
+            raise ValueError(
+                f"Runtime '{resolved_runtime}' for model '{model_arg}' is not configured in bench infra"
+            )
         return [resolved_runtime]
 
     if all_models:
@@ -419,7 +503,9 @@ def resolve_runtimes(runtime_arg: str, model_arg: Optional[str], all_models: boo
         for entry in load_models():
             runtime_name = str(entry["runtime"]).strip().lower()
             if runtime_name not in configured_runtimes:
-                raise ValueError(f"Model runtime '{runtime_name}' is not configured in bench infra")
+                raise ValueError(
+                    f"Model runtime '{runtime_name}' is not configured in bench infra"
+                )
             if runtime_name and runtime_name not in runtimes:
                 runtimes.append(runtime_name)
         if runtimes:
@@ -428,11 +514,15 @@ def resolve_runtimes(runtime_arg: str, model_arg: Optional[str], all_models: boo
     default_model = get_default_model_id()
     resolved_runtime = resolve_runtime_for_model_reference(default_model)
     if resolved_runtime not in configured_runtimes:
-        raise ValueError(f"Runtime '{resolved_runtime}' for default model is not configured in bench infra")
+        raise ValueError(
+            f"Runtime '{resolved_runtime}' for default model is not configured in bench infra"
+        )
     return [resolved_runtime]
 
 
-def select_models(runtime: str, specific_model: Optional[str], all_models: bool) -> List[str]:
+def select_models(
+    runtime: str, specific_model: Optional[str], all_models: bool
+) -> List[str]:
     runtime_name = runtime.strip().lower()
     runtime_infra, _, _ = _load_bench_config()
     if runtime_name not in runtime_infra:
@@ -441,7 +531,9 @@ def select_models(runtime: str, specific_model: Optional[str], all_models: bool)
     if specific_model:
         return [resolve_model_reference(specific_model, runtime=runtime_name)]
 
-    models = [entry["model"] for entry in load_models() if entry["runtime"] == runtime_name]
+    models = [
+        entry["model"] for entry in load_models() if entry["runtime"] == runtime_name
+    ]
     models = list(dict.fromkeys(models))
     if not models:
         raise ValueError(f"No configured models for runtime '{runtime_name}'")
@@ -452,7 +544,9 @@ def select_models(runtime: str, specific_model: Optional[str], all_models: bool)
     return [models[0]]
 
 
-def compose_benchmark_spec(runtime: str, model: str, args: Any) -> ComposedBenchmarkSpec:
+def compose_benchmark_spec(
+    runtime: str, model: str, args: Any
+) -> ComposedBenchmarkSpec:
     runtime_name = runtime.strip().lower()
     runtime_infra, runtime_defaults, model_overrides = _load_bench_config()
     if runtime_name not in runtime_infra:
@@ -465,9 +559,15 @@ def compose_benchmark_spec(runtime: str, model: str, args: Any) -> ComposedBench
     profile_key = model_entry["profile"]
     profiles = load_profiles()
     profile = profiles.get(profile_key)
-    profile_defaults: Dict[str, Any] = dict(profile.get("defaults", {}) if profile else {})
-    profile_capabilities: Dict[str, Any] = dict(profile.get("capabilities", {}) if profile else {})
-    profile_reasoning: Dict[str, Any] = dict(profile.get("reasoning", {}) if profile else {})
+    profile_defaults: Dict[str, Any] = dict(
+        profile.get("defaults", {}) if profile else {}
+    )
+    profile_capabilities: Dict[str, Any] = dict(
+        profile.get("capabilities", {}) if profile else {}
+    )
+    profile_reasoning: Dict[str, Any] = dict(
+        profile.get("reasoning", {}) if profile else {}
+    )
 
     override = _lookup_model_override(model_entry, model_overrides)
 
@@ -481,7 +581,9 @@ def compose_benchmark_spec(runtime: str, model: str, args: Any) -> ComposedBench
     )
     reasoning_mode = str(reasoning_mode).strip().lower()
     if reasoning_mode not in CONCRETE_REASONING_MODES:
-        raise ValueError(f"Invalid reasoning mode '{reasoning_mode}' for {runtime_name}/{model_entry['key']}")
+        raise ValueError(
+            f"Invalid reasoning mode '{reasoning_mode}' for {runtime_name}/{model_entry['key']}"
+        )
 
     cache_mode, cache_source = _resolve_setting(
         cli_value=getattr(args, "cache_mode", None),
@@ -563,7 +665,10 @@ def compose_benchmark_spec(runtime: str, model: str, args: Any) -> ComposedBench
         reasoning_format = None
     if reasoning_format is None:
         profile_reasoning_format = profile_reasoning.get("format")
-        if isinstance(profile_reasoning_format, str) and profile_reasoning_format.strip():
+        if (
+            isinstance(profile_reasoning_format, str)
+            and profile_reasoning_format.strip()
+        ):
             reasoning_format = profile_reasoning_format.strip().lower()
 
     reasoning_effective = reasoning_mode
@@ -583,7 +688,9 @@ def compose_benchmark_spec(runtime: str, model: str, args: Any) -> ComposedBench
 
     chat_url = str(infra.get("chat_url_openai") or "").strip()
     if not chat_url:
-        raise ValueError(f"Runtime '{runtime_name}' missing endpoint for transport '{transport_mode}'")
+        raise ValueError(
+            f"Runtime '{runtime_name}' missing endpoint for transport '{transport_mode}'"
+        )
 
     start_cmd_raw = infra.get("start_cmd")
     start_cmd = list(start_cmd_raw) if isinstance(start_cmd_raw, list) else None

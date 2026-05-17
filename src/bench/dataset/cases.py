@@ -23,7 +23,9 @@ def normalize_dataset_mode(dataset: str) -> str:
     return LEGACY_DATASET_ALIASES.get(dataset, dataset)
 
 
-def _build_payload(source_words: List[str], target_words: int, offset: int) -> List[str]:
+def _build_payload(
+    source_words: List[str], target_words: int, offset: int
+) -> List[str]:
     if not source_words:
         raise RuntimeError("Cannot build payload from empty source words")
     if target_words <= 0:
@@ -99,16 +101,22 @@ def parse_context_list(raw_value: str) -> List[int]:
 
 def _needle_fields(mode: str, context_k: int, sample_index: int) -> Dict[str, str]:
     tag = mode.upper()
-    checksum = (context_k * 1009) + (sample_index * 917) + (13 if mode == "short" else 29)
+    checksum = (
+        (context_k * 1009) + (sample_index * 917) + (13 if mode == "short" else 29)
+    )
     needle_key = f"{mode}-needle-{context_k}k-s{sample_index}"
-    needle_value = f"NIAH-{tag}-{context_k}K-S{sample_index:02d}-{(checksum % 1_000_000):06d}"
+    needle_value = (
+        f"NIAH-{tag}-{context_k}K-S{sample_index:02d}-{(checksum % 1_000_000):06d}"
+    )
     return {
         "needle_key": needle_key,
         "needle_value": needle_value,
     }
 
 
-def _embed_needle(payload_words: List[str], needle_text: str, position: int) -> tuple[List[str], int]:
+def _embed_needle(
+    payload_words: List[str], needle_text: str, position: int
+) -> tuple[List[str], int]:
     needle_words = needle_text.split()
     if not needle_words:
         return list(payload_words), 0
@@ -119,7 +127,7 @@ def _embed_needle(payload_words: List[str], needle_text: str, position: int) -> 
     max_pos = max(0, len(payload_words) - len(needle_words))
     pos = min(max(position, 0), max_pos)
     mutated = list(payload_words)
-    mutated[pos:pos + len(needle_words)] = needle_words
+    mutated[pos : pos + len(needle_words)] = needle_words
     return mutated, pos
 
 
@@ -148,11 +156,14 @@ def _render_query(template: str, needle_key: str) -> str:
 @lru_cache(maxsize=8)
 def _load_hf_tokenizer(model_id: str) -> Any:
     from transformers import AutoTokenizer
+
     return AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
 
 
 def _token_count_for_prompt(tokenizer: Any, prompt: str) -> int:
-    add_special_tokens = tokenizer.bos_token is None or not prompt.startswith(tokenizer.bos_token)
+    add_special_tokens = tokenizer.bos_token is None or not prompt.startswith(
+        tokenizer.bos_token
+    )
     token_ids = tokenizer.encode(prompt, add_special_tokens=add_special_tokens)
     return int(len(token_ids))
 
@@ -172,11 +183,17 @@ def _build_long_context_payload(
     context_needles: List[Dict[str, Any]] = []
     for idx in range(samples):
         sample_index = idx + 1
-        needle = _needle_fields(mode="long", context_k=context_k, sample_index=sample_index)
-        needle_text = _render_needle(prompts, needle["needle_key"], needle["needle_value"])
+        needle = _needle_fields(
+            mode="long", context_k=context_k, sample_index=sample_index
+        )
+        needle_text = _render_needle(
+            prompts, needle["needle_key"], needle["needle_value"]
+        )
         # Spread needles across the payload to avoid end-clamp collisions at small contexts.
         max_pos = max(0, len(shared_payload_words) - len(needle_text.split()))
-        target_position = int((sample_index * max_pos) / (samples + 1)) if samples > 0 else 0
+        target_position = (
+            int((sample_index * max_pos) / (samples + 1)) if samples > 0 else 0
+        )
         shared_payload_words, needle_position = _embed_needle(
             payload_words=shared_payload_words,
             needle_text=needle_text,
@@ -201,9 +218,15 @@ def build_short_cases(samples: int) -> List[Dict[str, Any]]:
     context_k = int(SHORT_CONTEXT_TOKENS / 1000)
     for idx in range(samples):
         sample_index = idx + 1
-        payload_words = _build_payload(source_words, target_words=target_words, offset=idx * 257)
-        needle = _needle_fields(mode="short", context_k=context_k, sample_index=sample_index)
-        needle_text = _render_needle(prompts, needle["needle_key"], needle["needle_value"])
+        payload_words = _build_payload(
+            source_words, target_words=target_words, offset=idx * 257
+        )
+        needle = _needle_fields(
+            mode="short", context_k=context_k, sample_index=sample_index
+        )
+        needle_text = _render_needle(
+            prompts, needle["needle_key"], needle["needle_value"]
+        )
         payload_words, needle_position = _embed_needle(
             payload_words=payload_words,
             needle_text=needle_text,
@@ -281,13 +304,16 @@ def build_long_cases(
                     f"{prompts['long_intro']}\n\n"
                     f"{' '.join(candidate_payload)}\n\n"
                 )
-                probe_key = str(candidate_needles[0]["needle_key"]) if candidate_needles else f"long-needle-{context_k}k-s1"
-                probe_query = _render_query(prompts["long_query"], probe_key)
-                probe_suffix = (
-                    f"Question: {probe_query}\n"
-                    f"{prompts['answer_format']}"
+                probe_key = (
+                    str(candidate_needles[0]["needle_key"])
+                    if candidate_needles
+                    else f"long-needle-{context_k}k-s1"
                 )
-                prompt_tokens = _token_count_for_prompt(tokenizer, f"{candidate_prefix}{probe_suffix}")
+                probe_query = _render_query(prompts["long_query"], probe_key)
+                probe_suffix = f"Question: {probe_query}\n{prompts['answer_format']}"
+                prompt_tokens = _token_count_for_prompt(
+                    tokenizer, f"{candidate_prefix}{probe_suffix}"
+                )
 
                 if prompt_tokens <= context_tokens:
                     best_words = candidate_words
@@ -315,14 +341,8 @@ def build_long_cases(
         for needle_meta in context_needles:
             sample_index = int(needle_meta["sample_index"])
             query = _render_query(prompts["long_query"], str(needle_meta["needle_key"]))
-            prompt_suffix = (
-                f"Question: {query}\n"
-                f"{prompts['answer_format']}"
-            )
-            prompt = (
-                f"{prompt_prefix}"
-                f"{prompt_suffix}"
-            )
+            prompt_suffix = f"Question: {query}\n{prompts['answer_format']}"
+            prompt = f"{prompt_prefix}{prompt_suffix}"
             cases.append(
                 {
                     "dataset": "long",

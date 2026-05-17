@@ -28,7 +28,9 @@ class DatasetSource:
     default: bool = False
 
 
-def load_dataset_sources(config_path: Path = DATASET_CONFIG_PATH) -> list[DatasetSource]:
+def load_dataset_sources(
+    config_path: Path = DATASET_CONFIG_PATH,
+) -> list[DatasetSource]:
     if not config_path.exists():
         raise RuntimeError(f"Dataset config not found: {config_path}")
 
@@ -61,7 +63,9 @@ def load_dataset_sources(config_path: Path = DATASET_CONFIG_PATH) -> list[Datase
     return sources
 
 
-def get_dataset_source(name: str | None = None, config_path: Path = DATASET_CONFIG_PATH) -> DatasetSource:
+def get_dataset_source(
+    name: str | None = None, config_path: Path = DATASET_CONFIG_PATH
+) -> DatasetSource:
     sources = load_dataset_sources(config_path=config_path)
     if name:
         for source in sources:
@@ -111,7 +115,9 @@ def fetch_html(url: str, output_html: Path, timeout_sec: int = 60) -> Path:
     return output_html
 
 
-def parse_html_to_markdown(input_html: Path, output_md: Path, source_url: str | None = None) -> Path:
+def parse_html_to_markdown(
+    input_html: Path, output_md: Path, source_url: str | None = None
+) -> Path:
     if not input_html.exists():
         raise RuntimeError(f"Input HTML not found: {input_html}")
 
@@ -139,4 +145,6 @@ def fetch_and_parse(
 ) -> Path:
     html_path = output_html or output_md.with_suffix(".html")
     fetch_html(url=url, output_html=html_path, timeout_sec=timeout_sec)
-    return parse_html_to_markdown(input_html=html_path, output_md=output_md, source_url=url)
+    return parse_html_to_markdown(
+        input_html=html_path, output_md=output_md, source_url=url
+    )

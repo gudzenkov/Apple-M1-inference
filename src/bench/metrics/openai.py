@@ -22,7 +22,9 @@ from src.bench.metrics.common import (
 )
 
 
-def _perf_and_usage_from_llama_timings(timings: Any) -> tuple[Dict[str, Any], Dict[str, Any]]:
+def _perf_and_usage_from_llama_timings(
+    timings: Any,
+) -> tuple[Dict[str, Any], Dict[str, Any]]:
     if not isinstance(timings, dict):
         return {}, {}
 
@@ -206,7 +208,9 @@ def benchmark_openai_compat(
                 chunk_perf = chunk.get("perf")
                 if isinstance(chunk_perf, dict):
                     perf.update(chunk_perf)
-                chunk_timings_perf, chunk_timings_usage = _perf_and_usage_from_llama_timings(chunk.get("timings"))
+                chunk_timings_perf, chunk_timings_usage = (
+                    _perf_and_usage_from_llama_timings(chunk.get("timings"))
+                )
                 if chunk_timings_perf:
                     perf.update(chunk_timings_perf)
                 if chunk_timings_usage and not usage:
@@ -247,7 +251,9 @@ def benchmark_openai_compat(
                 response_text = "".join(reasoning_chunks).strip()
             response_json = {
                 "object": "chat.completion",
-                "choices": [{"message": {"role": "assistant", "content": response_text}}],
+                "choices": [
+                    {"message": {"role": "assistant", "content": response_text}}
+                ],
                 "usage": usage,
                 "perf": perf,
                 "stream_mode": True,
@@ -282,17 +288,29 @@ def benchmark_openai_compat(
                     stream_enabled=stream_enabled,
                 )
 
-            usage = response_json.get("usage", {}) if isinstance(response_json, dict) else {}
-            perf = response_json.get("perf", {}) if isinstance(response_json, dict) else {}
+            usage = (
+                response_json.get("usage", {})
+                if isinstance(response_json, dict)
+                else {}
+            )
+            perf = (
+                response_json.get("perf", {}) if isinstance(response_json, dict) else {}
+            )
             if not perf or not usage:
                 timings_perf, timings_usage = _perf_and_usage_from_llama_timings(
-                    response_json.get("timings") if isinstance(response_json, dict) else None
+                    response_json.get("timings")
+                    if isinstance(response_json, dict)
+                    else None
                 )
                 if timings_perf and not perf:
                     perf = timings_perf
                 if timings_usage and not usage:
                     usage = timings_usage
-            choices = response_json.get("choices", []) if isinstance(response_json, dict) else []
+            choices = (
+                response_json.get("choices", [])
+                if isinstance(response_json, dict)
+                else []
+            )
             if isinstance(choices, list) and choices:
                 choice0 = choices[0] if isinstance(choices[0], dict) else {}
                 response_text = extract_text_from_message(choice0.get("message"))
@@ -304,9 +322,15 @@ def benchmark_openai_compat(
     finished_at = time.perf_counter()
     total_time_sec = finished_at - started_at
 
-    prompt_tokens_server = safe_int(usage.get("prompt_tokens")) if isinstance(usage, dict) else 0
-    completion_tokens_server = safe_int(usage.get("completion_tokens")) if isinstance(usage, dict) else 0
-    total_tokens_server = safe_int(usage.get("total_tokens")) if isinstance(usage, dict) else 0
+    prompt_tokens_server = (
+        safe_int(usage.get("prompt_tokens")) if isinstance(usage, dict) else 0
+    )
+    completion_tokens_server = (
+        safe_int(usage.get("completion_tokens")) if isinstance(usage, dict) else 0
+    )
+    total_tokens_server = (
+        safe_int(usage.get("total_tokens")) if isinstance(usage, dict) else 0
+    )
 
     prompt_tokens_normalized = prompt_tokens_server
     completion_tokens_normalized = completion_tokens_server
@@ -327,21 +351,37 @@ def benchmark_openai_compat(
         sources["usage.normalized.completion_tokens"] = "server"
 
     if total_tokens_normalized <= 0:
-        total_tokens_normalized = prompt_tokens_normalized + completion_tokens_normalized
+        total_tokens_normalized = (
+            prompt_tokens_normalized + completion_tokens_normalized
+        )
         sources["usage.normalized.total_tokens"] = "estimated"
     else:
         sources["usage.normalized.total_tokens"] = "server"
 
-    sources["usage.server.prompt_tokens"] = "server" if prompt_tokens_server > 0 else "estimated"
-    sources["usage.server.completion_tokens"] = "server" if completion_tokens_server > 0 else "estimated"
-    sources["usage.server.total_tokens"] = "server" if total_tokens_server > 0 else "estimated"
+    sources["usage.server.prompt_tokens"] = (
+        "server" if prompt_tokens_server > 0 else "estimated"
+    )
+    sources["usage.server.completion_tokens"] = (
+        "server" if completion_tokens_server > 0 else "estimated"
+    )
+    sources["usage.server.total_tokens"] = (
+        "server" if total_tokens_server > 0 else "estimated"
+    )
 
-    client_ttft_sec = (first_token_at - started_at) if first_token_at is not None else None
+    client_ttft_sec = (
+        (first_token_at - started_at) if first_token_at is not None else None
+    )
     sources["timing.client.total_time_sec"] = "client_derived"
-    sources["timing.client.ttft_sec"] = "client_derived" if client_ttft_sec is not None else "unavailable_non_stream"
+    sources["timing.client.ttft_sec"] = (
+        "client_derived" if client_ttft_sec is not None else "unavailable_non_stream"
+    )
 
-    server_ttft_sec = safe_float(perf.get("ttft_sec")) if isinstance(perf, dict) else 0.0
-    server_total_time_sec = safe_float(perf.get("total_time_sec")) if isinstance(perf, dict) else 0.0
+    server_ttft_sec = (
+        safe_float(perf.get("ttft_sec")) if isinstance(perf, dict) else 0.0
+    )
+    server_total_time_sec = (
+        safe_float(perf.get("total_time_sec")) if isinstance(perf, dict) else 0.0
+    )
 
     if server_ttft_sec > 0:
         sources["timing.server.ttft_sec"] = "server"
@@ -352,7 +392,9 @@ def benchmark_openai_compat(
         sources["timing.server.total_time_sec"] = "client_derived"
 
     prompt_tps = safe_float(perf.get("prompt_tps")) if isinstance(perf, dict) else 0.0
-    generation_tps = safe_float(perf.get("generation_tps")) if isinstance(perf, dict) else 0.0
+    generation_tps = (
+        safe_float(perf.get("generation_tps")) if isinstance(perf, dict) else 0.0
+    )
 
     if prompt_tps > 0:
         sources["throughput.prompt_tps"] = "server"
@@ -360,23 +402,37 @@ def benchmark_openai_compat(
         prompt_tps = float(prompt_tokens_normalized) / client_ttft_sec
         sources["throughput.prompt_tps"] = "estimated"
 
-    decode_time = max(total_time_sec - client_ttft_sec, 1e-9) if client_ttft_sec is not None else None
+    decode_time = (
+        max(total_time_sec - client_ttft_sec, 1e-9)
+        if client_ttft_sec is not None
+        else None
+    )
     if generation_tps > 0:
         sources["throughput.generation_tps"] = "server"
-    elif decode_time is not None and completion_tokens_normalized > 0 and decode_time > 0:
+    elif (
+        decode_time is not None and completion_tokens_normalized > 0 and decode_time > 0
+    ):
         generation_tps = float(completion_tokens_normalized) / decode_time
         sources["throughput.generation_tps"] = "estimated"
 
-    tokens_per_second = float(completion_tokens_normalized) / total_time_sec if total_time_sec > 0 else 0.0
+    tokens_per_second = (
+        float(completion_tokens_normalized) / total_time_sec
+        if total_time_sec > 0
+        else 0.0
+    )
     sources["throughput.tokens_per_second"] = "client_derived"
 
-    server_peak_memory_gb = safe_float(perf.get("peak_memory_gb")) if isinstance(perf, dict) else 0.0
+    server_peak_memory_gb = (
+        safe_float(perf.get("peak_memory_gb")) if isinstance(perf, dict) else 0.0
+    )
     if runtime in {"mlx", "mlx-optiq"} and server_peak_memory_gb > 0:
         peak_gb = round(server_peak_memory_gb, 4)
         sources["memory.peak_gb"] = "server"
     else:
         peak_gb = peak_memory_gb
-        sources["memory.peak_gb"] = "client_derived" if peak_gb is not None else "estimated"
+        sources["memory.peak_gb"] = (
+            "client_derived" if peak_gb is not None else "estimated"
+        )
 
     if response_path is not None and response is not None:
         dump_json(
@@ -397,7 +453,9 @@ def benchmark_openai_compat(
         "timing": {
             "client": {
                 "total_time_sec": round(total_time_sec, 4),
-                "ttft_sec": round(client_ttft_sec, 4) if client_ttft_sec is not None else None,
+                "ttft_sec": round(client_ttft_sec, 4)
+                if client_ttft_sec is not None
+                else None,
             },
             "server": {
                 "total_time_sec": round(server_total_time_sec, 4),

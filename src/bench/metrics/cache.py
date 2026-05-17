@@ -71,7 +71,10 @@ def clear_prompt_cache(
         return {"success": False, "error": str(exc)}
 
     if response.status_code != 200:
-        return {"success": False, "error": f"HTTP {response.status_code}: {response.text[:200]}"}
+        return {
+            "success": False,
+            "error": f"HTTP {response.status_code}: {response.text[:200]}",
+        }
 
     try:
         data = response.json()

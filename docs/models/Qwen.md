@@ -8,10 +8,16 @@
 | mlx-community/Qwen3.5-27B-4bit | 27B | 4-bit | `mlx-openai-server` | ~20–25 GB + 20–25 GB context |
 | hertz-hwang/Qwen3.5-27B-OpenClaw-mlx-6.5bit | 27B | 6.5-bit | `mlx-openai-server` | ~30+ GB + 20–25 GB context |
 | mlx-community/Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit | 27B | 4-bit | `mlx-openai-server` | ~20–25 GB + 20–25 GB context |
-| mlx-community/Qwen3.5-35B-A3B-4bit | 35B (A3B) | 4-bit | `mlx-openai-server` | ~22–28 GB + 24–30 GB context |
+| mlx-community/Qwen3.5-35B-A3B-4bit | 35B total / 3B active | 4-bit | `vllm-metal` preferred, `mlx-openai-server` fallback | ~22–28 GB + context |
+| mlx-community/Qwen3.6-35B-A3B-4bit-DWQ | 35B total / 3B active | 4-bit DWQ | `vllm-metal` preferred | ~21 GB model + KV cache |
+| Qwen/Qwen3-Embedding-0.6B-GGUF | 0.6B | Q8_0/F16 GGUF | `llama-server --embedding` | ~1–2 GB |
+| Qwen/Qwen3-Embedding-4B-GGUF | 4B | Q4_K_M/Q5/Q6/Q8/F16 GGUF | `llama-server --embedding` | ~3–7 GB |
+| Qwen/Qwen3-Embedding-8B-GGUF | 8B | Q4_K_M/Q5/Q6/Q8/F16 GGUF | `llama-server --embedding` | ~6–12 GB |
 | flovflo/turboquant-mlx-qwen35-kv | 35B (A3B) | 4-bit + TurboQuant KV cache | `tqkv-openai-server` | ~22–28 GB + ~4–6 GB compressed KV context |
 
-All models support 262144 tokens (256K) when the server (MLX or Optiq) is started with the matching context length.
+Qwen3.5 and Qwen3.6 chat models support long context when the server is started with the matching context length. The embedding server should use an explicit practical context such as 32768 unless a larger retrieval workload is validated.
+
+Hard truth: local Qwen3.6-35B-A3B does not provide hosted Qwen built-in tools. Local servers can expose tool-call JSON; the client still executes tools.
 
 ## TurboQuant KV cache compression
 
@@ -26,6 +32,13 @@ OptiQ models can leverage `mlx-optiq` to compress the KV cache to roughly 1/5 of
 - MLX inference here requires native macOS runtime access.
 
 ## Qwen+MLX inference flows
+
+### Recommended split endpoint
+- `vllm-metal` serves Qwen3.6-35B-A3B 4-bit DWQ chat, thinking, and tool-call parsing on `:8000`.
+- `llama.cpp` serves Qwen3 embeddings on `:8001`; default to 0.6B when Qwen3.6-35B-A3B is also resident.
+- Devcontainers call these through `http://host.docker.internal:8000/v1` and `http://host.docker.internal:8001/v1`.
+
+This is the preferred setup for agent clients that expect OpenAI-compatible APIs.
 
 ### General MLX server (`mlx-openai-server`)
 - Default server for most experiments.
@@ -52,10 +65,14 @@ Adjust `max_tokens` per prompt (a default of 1024 works for most completions) an
 ## Tips
 
 - Keep the MLX/Optiq server running and tail `logs/mlx-server.log` or `logs/mlx-optiq-server.log` for request visibility.
+- For Qwen3.6-35B-A3B agent workflows, prefer `scripts/start-vllm-metal-qwen36.sh` and validate tool calls before long runs.
+- For embeddings, prefer `scripts/start-qwen3-embedding-llama.cpp.sh` and probe `/v1/embeddings` directly.
 - Use `curl http://localhost:8000/v1/models` (MLX server) or `http://localhost:8080/v1/models` (Optiq server) to sanity-check readiness before connecting any client.
 - The TurboQuant server uses a fixed seed per layer to keep compression deterministic; avoid restarting the process too frequently if you need consistent caches.
 
 ## Resources
 
 - `docs/servers/MLX.md` – server launch commands, monitoring, troubleshooting.
+- `docs/servers/VLLM-Metal.md` – recommended Qwen3.6-35B-A3B chat/tools/thinking server.
+- `docs/servers/llama.cpp.md` – Qwen3 embedding server.
 - `docs/benchmarks/performance.md` – benchmark workflow for MLX and MLX-Optiq.

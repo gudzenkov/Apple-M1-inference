@@ -11,6 +11,7 @@ from src.bench.metrics.cache import clear_prompt_cache, prefill_prompt_cache
 from src.bench.metrics.common import error_result
 from src.bench.metrics.openai import benchmark_openai_compat, warmup_openai_compat
 from src.bench.process import (
+    pids_for_listen_port,
     start_managed_server,
     stop_llama_cpp_servers,
     stop_managed_process,
@@ -54,7 +55,9 @@ class RuntimeHandler:
     ) -> Dict[str, Any]:
         raise NotImplementedError
 
-    def teardown_model(self, *, spec: ComposedBenchmarkSpec, state: ModelRunState) -> None:
+    def teardown_model(
+        self, *, spec: ComposedBenchmarkSpec, state: ModelRunState
+    ) -> None:
         raise NotImplementedError
 
 
@@ -65,6 +68,13 @@ def _stop_runtime_servers(runtime: str, port: Optional[int], *, verbose: bool) -
         return
     if runtime_name == "llama.cpp":
         stop_llama_cpp_servers(port=port or 8090, verbose=verbose)
+        return
+    if runtime_name == "vllm-metal":
+        if verbose and port is not None and pids_for_listen_port(port):
+            raise RuntimeError(
+                f"Port {port} is already occupied. Stop the existing vLLM-Metal "
+                "server or choose another VLLM_PORT before benchmarking."
+            )
         return
     raise ValueError(f"Unsupported runtime: {runtime}")
 
@@ -115,7 +125,9 @@ class OpenAICompatRuntimeHandler(RuntimeHandler):
                     },
                     log_dir=log_dir,
                 )
-                setup_entry["server_start_sec"] = round(time.perf_counter() - server_start_started, 4)
+                setup_entry["server_start_sec"] = round(
+                    time.perf_counter() - server_start_started, 4
+                )
                 state.managed_proc = managed_proc
                 state.memory_pid = managed_proc.pid
 
@@ -275,7 +287,9 @@ class OpenAICompatRuntimeHandler(RuntimeHandler):
             sources["timing.cache.prefill_sec"] = "client_derived"
         return result
 
-    def teardown_model(self, *, spec: ComposedBenchmarkSpec, state: ModelRunState) -> None:
+    def teardown_model(
+        self, *, spec: ComposedBenchmarkSpec, state: ModelRunState
+    ) -> None:
         try:
             if spec.cache_clear_url and state.cache_ids:
                 for cache_id in sorted(state.cache_ids):
@@ -298,6 +312,6 @@ class OpenAICompatRuntimeHandler(RuntimeHandler):
 
 def get_runtime_handler(runtime: str) -> RuntimeHandler:
     runtime_name = runtime.strip().lower()
-    if runtime_name in {"mlx", "mlx-optiq", "llama.cpp"}:
+    if runtime_name in {"mlx", "mlx-optiq", "vllm-metal", "llama.cpp"}:
         return OpenAICompatRuntimeHandler()
     raise ValueError(f"Unsupported runtime: {runtime}")

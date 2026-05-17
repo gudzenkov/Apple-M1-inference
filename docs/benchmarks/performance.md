@@ -1,11 +1,13 @@
-# Performance Benchmark: MLX, MLX-Optiq, and llama.cpp
+# Performance Benchmark: vLLM-Metal, MLX, MLX-Optiq, and llama.cpp
 
 Benchmark workflow for comparing the local inference runtimes used in this repo:
 - `mlx-openai-server` (standard, port `8000`)
 - `mlx-openai-optiq-server` (TurboQuant, port `8080`)
+- `vllm-metal` (Qwen3.6-35B-A3B 4-bit DWQ, port `8000`)
 - `llama-server` (`llama.cpp`, port `8090`)
 
 The benchmark runner manages server lifecycle to avoid OOM from running multiple local servers at once.
+`mlx` and `vllm-metal` both default to port `8000`; run them as separate benchmark invocations.
 It now uses 2 dataset modes:
 - `short` (fixed `8k`, needle-in-haystack retrieval)
 - `long` (variable context via `--context`, default `64k`, needle-in-haystack retrieval)
@@ -111,13 +113,16 @@ Raw results:
 - `--runtime auto` (default): resolve runtime from `--model` using `configs/models.yaml`.
 - `--runtime mlx`: benchmark only `mlx-openai-server` on `:8000`.
 - `--runtime mlx-optiq`: benchmark only `mlx-openai-optiq-server` on `:8080`.
+- `--runtime vllm-metal`: benchmark only vLLM-Metal on `:8000`.
 - `--runtime llama.cpp`: benchmark only `llama-server` on `:8090`.
 
-For managed runtime runs (`mlx`, `mlx-optiq`, `llama.cpp`), the script:
+For managed runtime runs (`mlx`, `mlx-optiq`, `vllm-metal`, `llama.cpp`), the script:
 1. Stops any existing managed server process on the runtime's port.
 2. Starts the selected server with the selected model.
 3. Runs benchmark prompts.
 4. Stops the server before moving to the next runtime/model.
+
+Exception: for `vllm-metal`, the runner refuses an occupied port instead of stopping an unrelated host process. Stop your existing vLLM server yourself or choose another `VLLM_PORT`.
 
 ## Usage examples
 
@@ -132,9 +137,13 @@ uv run benchmark --runtime mlx-optiq --model mlx-optiq-9b
 # llama.cpp only
 uv run benchmark --runtime llama.cpp --model llama-cpp-qwen-9b
 
+# vLLM-Metal Qwen3.6-35B-A3B only
+uv run benchmark --runtime vllm-metal --model qwen3.6-35b-a3b
+
 # Compare both servers with explicit separate runs
 uv run benchmark --runtime mlx --model mlx-qwen-9b
 uv run benchmark --runtime mlx-optiq --model mlx-optiq-9b
+uv run benchmark --runtime vllm-metal --model qwen3.6-35b-a3b
 uv run benchmark --runtime llama.cpp --model llama-cpp-qwen-9b
 
 # Run short dataset only (8k)

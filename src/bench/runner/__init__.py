@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from src.bench.composition import resolve_runtimes
 from src.bench.runner.execution import run_runtime_matrix
@@ -17,7 +17,11 @@ from src.bench.runner.stats import (
     row_total_time,
 )
 from src.bench.runner.summary import display_path, write_summary_reports
-from src.bench.utils import default_output_filename, default_summary_stem, resolve_experiment_paths
+from src.bench.utils import (
+    default_output_filename,
+    default_summary_stem,
+    resolve_experiment_paths,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 LOG_DIR = ROOT_DIR / "logs"
@@ -44,7 +48,10 @@ def run_benchmark(args: Any) -> int:
     experiment_dir.mkdir(parents=True, exist_ok=True)
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Managed mode: MLX servers run sequentially (never together) to avoid OOM.", file=sys.stderr)
+    print(
+        "Managed mode: MLX servers run sequentially (never together) to avoid OOM.",
+        file=sys.stderr,
+    )
     print(f"Artifacts directory: {experiment_dir}", file=sys.stderr)
     print(f"Results directory: {results_dir}", file=sys.stderr)
 
@@ -59,7 +66,9 @@ def run_benchmark(args: Any) -> int:
     if args.output:
         output_name = args.output
     else:
-        output_name = str(results_dir / default_output_filename(args, runtimes, results))
+        output_name = str(
+            results_dir / default_output_filename(args, runtimes, results)
+        )
 
     output_arg = Path(output_name)
     if not output_arg.is_absolute() and output_arg.parent == Path("."):
@@ -86,7 +95,9 @@ def run_benchmark(args: Any) -> int:
         summary_dir=results_dir,
         summary_stem=summary_stem,
     )
-    print(f"✅ Summary JSON: {display_path(summary_json_path, ROOT_DIR)}", file=sys.stderr)
+    print(
+        f"✅ Summary JSON: {display_path(summary_json_path, ROOT_DIR)}", file=sys.stderr
+    )
     print(f"✅ Summary MD: {display_path(summary_md_path, ROOT_DIR)}", file=sys.stderr)
 
     benchmark_results = [r for r in results if bool(r.get("benchmark_included", True))]
@@ -97,11 +108,19 @@ def run_benchmark(args: Any) -> int:
             runtime_results = [r for r in successful if r.get("runtime") == runtime]
             if not runtime_results:
                 continue
-            avg_speed = avg([row_throughput(r, "tokens_per_second") for r in runtime_results])
+            avg_speed = avg(
+                [row_throughput(r, "tokens_per_second") for r in runtime_results]
+            )
             avg_time = avg([row_total_time(r) for r in runtime_results])
-            retrieval_rows = [r for r in runtime_results if row_retrieval_score(r) is not None]
-            avg_retrieval = avg([float(row_retrieval_score(r) or 0.0) for r in retrieval_rows])
-            exact_rate = avg([1.0 if bool(row_retrieval_exact(r)) else 0.0 for r in retrieval_rows])
+            retrieval_rows = [
+                r for r in runtime_results if row_retrieval_score(r) is not None
+            ]
+            avg_retrieval = avg(
+                [float(row_retrieval_score(r) or 0.0) for r in retrieval_rows]
+            )
+            exact_rate = avg(
+                [1.0 if bool(row_retrieval_exact(r)) else 0.0 for r in retrieval_rows]
+            )
             exact_ci95 = ci95_half_width_for_rate(exact_rate, len(retrieval_rows))
             print(
                 f"  {runtime}: avg {avg_speed:.2f} tok/s, avg {avg_time:.2f}s, "

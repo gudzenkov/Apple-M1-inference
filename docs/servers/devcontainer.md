@@ -1,14 +1,32 @@
 # Mac Host for Devcontainers
 
-Run MLX/Metal inference on macOS host, invoke it from the docker container over the VM boundary.
+Run Metal inference on macOS host, invoke it from the docker container over the VM boundary.
 
 This runbook covers devcontainers running in:
 - OrbStack (Linux VM)
 - Docker Desktop (Linux VM)
 
-## 1. Start the inference server on macOS host
+## 1. Start inference servers on macOS host
 
-Pick one MLX runtime and keep it running on host.
+Recommended Qwen3.6 agent setup:
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+
+# Chat/tools/thinking on :8000
+scripts/start-vllm-metal-qwen36.sh
+```
+
+In a second terminal:
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+
+# Qwen3 0.6B embeddings on :8001
+scripts/start-qwen3-embedding-llama.cpp.sh
+```
+
+Legacy MLX runtimes remain available:
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -21,16 +39,20 @@ uv run mlx-openai-server start
 uv run mlx-openai-optiq-server start
 ```
 
-## 2. Verify host endpoint before entering container
+## 2. Verify host endpoints before entering container
 
 ```bash
 curl -s http://127.0.0.1:8000/v1/models
-curl -s http://127.0.0.1:8080/v1/models
+curl -s http://127.0.0.1:8001/v1/models
+curl -s http://127.0.0.1:8001/v1/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{"model":"qwen3-embedding","input":"test"}'
 ```
 
 Use the port for the runtime you started:
-- `8000` -> `mlx-openai-server`
-- `8080` -> `mlx-openai-optiq-server`
+- `8000` -> `vLLM-Metal` chat/tools/thinking or legacy `mlx-openai-server`
+- `8001` -> `llama.cpp` Qwen3 embeddings
+- `8080` -> legacy `mlx-openai-optiq-server`; this port is often used by other local tools, so probe it before relying on it
 
 ## 3. Expose host endpoint to devcontainer
 
@@ -42,26 +64,32 @@ Example `devcontainer.json`:
 {
   "name": "localfirst",
   "containerEnv": {
-    "LLM_BASE_URL": "http://host.docker.internal:8080/v1",
-    "LLM_API_KEY": "local"
+    "OPENAI_BASE_URL": "http://host.docker.internal:8000/v1",
+    "OPENAI_API_KEY": "local",
+    "OPENAI_EMBEDDINGS_BASE_URL": "http://host.docker.internal:8001/v1",
+    "QWEN_CHAT_MODEL": "qwen3.6-35b-a3b",
+    "QWEN_EMBEDDING_MODEL": "qwen3-embedding"
   },
   "remoteEnv": {
-    "LLM_BASE_URL": "http://host.docker.internal:8080/v1",
-    "LLM_API_KEY": "local"
+    "OPENAI_BASE_URL": "http://host.docker.internal:8000/v1",
+    "OPENAI_API_KEY": "local",
+    "OPENAI_EMBEDDINGS_BASE_URL": "http://host.docker.internal:8001/v1"
   }
 }
 ```
 
-If your client expects OpenAI-style names, map the same value to `OPENAI_BASE_URL` and set `OPENAI_API_KEY=local`.
+If your client needs separate chat and embedding providers, use `OPENAI_BASE_URL` for chat and `OPENAI_EMBEDDINGS_BASE_URL` for embeddings. Many SDKs do not have a standard embedding base-url variable, so wire it explicitly in client config when needed.
 
 ## 4. Validate connectivity from inside the devcontainer
 
 ```bash
-curl -s http://host.docker.internal:8080/v1/models
 curl -s http://host.docker.internal:8000/v1/models
+curl -s http://host.docker.internal:8001/v1/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{"model":"qwen3-embedding","input":"test"}'
 ```
 
-One of these should return the model list from the runtime you started on host.
+Both should succeed for the recommended split-server setup.
 
 ## 5. OrbStack
 
@@ -90,11 +118,12 @@ Recommended default for VS Code Dev Containers:
 ## Troubleshooting
 
 - `Connection refused` from container:
-  - Server is not running on host. Re-run `uv run mlx-openai-server status` or `uv run mlx-openai-optiq-server status`.
+  - Server is not running on host. Re-run host smoke tests first.
   - Wrong port or runtime mismatch.
 - `404` on requests:
   - Base URL missing `/v1`.
   - Client calling `/v1/completions` instead of `/v1/chat/completions`.
+  - Embedding client pointed at the chat endpoint instead of `:8001`.
 - DNS issue for `host.docker.internal`:
   - You are probably not on OrbStack/Docker Desktop VM networking path.
   - Add explicit host mapping only if needed by your setup.
@@ -105,5 +134,7 @@ Recommended default for VS Code Dev Containers:
 ## References
 
 - [MLX server runbook](./MLX.md)
+- [vLLM-Metal Qwen3.6 server](./VLLM-Metal.md)
+- [llama.cpp embedding server](./llama.cpp.md)
 - [OrbStack host networking docs](https://docs.orbstack.dev/docker/host-networking)
 - [Docker Desktop networking docs](https://docs.docker.com/desktop/features/networking/networking-how-tos/)

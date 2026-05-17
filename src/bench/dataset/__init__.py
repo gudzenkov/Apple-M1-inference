@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from src.bench.dataset.cases import build_cases, normalize_dataset_mode, parse_context_list
+from src.bench.dataset.cases import (
+    build_cases,
+    normalize_dataset_mode,
+    parse_context_list,
+)
 from src.bench.dataset.tools import (
     DEFAULT_DATASET_MD,
     fetch_and_parse,

@@ -10,6 +10,7 @@ from src.bench.runner.execution import _tokenizer_model_id_for_runtime_model
 from src.bench.runner.execution import _build_prime_case
 from src.bench.runner.stats import row_prefill_sec
 from src.bench.runner.summary import runtime_summary_rows
+from src.bench.handlers import OpenAICompatRuntimeHandler, get_runtime_handler
 
 
 class BenchStatsTest(unittest.TestCase):
@@ -113,7 +114,15 @@ class BenchStatsTest(unittest.TestCase):
 
     def test_render_start_cmd_substitutes_model_host_and_port(self) -> None:
         rendered = _render_start_cmd(
-            ["llama-server", "--hf-repo", "{model}", "--host", "{host}", "--port", "{port}"],
+            [
+                "llama-server",
+                "--hf-repo",
+                "{model}",
+                "--host",
+                "{host}",
+                "--port",
+                "{port}",
+            ],
             model="unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
             port=8090,
         )
@@ -131,7 +140,9 @@ class BenchStatsTest(unittest.TestCase):
             ],
         )
 
-    def test_compose_benchmark_spec_for_llama_cpp_uses_request_cache_defaults(self) -> None:
+    def test_compose_benchmark_spec_for_llama_cpp_uses_request_cache_defaults(
+        self,
+    ) -> None:
         args = Namespace(
             reasoning_mode="auto",
             cache_mode="auto",
@@ -155,6 +166,39 @@ class BenchStatsTest(unittest.TestCase):
         self.assertTrue(spec.stream_enabled)
         self.assertEqual(spec.port, 8090)
         self.assertTrue(spec.managed_server)
+
+    def test_compose_benchmark_spec_for_vllm_metal_qwen36(self) -> None:
+        args = Namespace(
+            reasoning_mode="auto",
+            cache_mode="auto",
+            transport="auto",
+            stream="auto",
+            request_timeout=None,
+            server_start_timeout=None,
+            request_options=None,
+        )
+
+        spec = compose_benchmark_spec(
+            runtime="vllm-metal",
+            model="qwen3.6-35b-a3b",
+            args=args,
+        )
+
+        self.assertEqual(spec.runtime, "vllm-metal")
+        self.assertEqual(spec.model, "qwen3.6-35b-a3b")
+        self.assertEqual(spec.cache_mode, "none")
+        self.assertEqual(spec.transport_mode, "openai-compat")
+        self.assertTrue(spec.stream_enabled)
+        self.assertEqual(spec.port, 8000)
+        self.assertTrue(spec.managed_server)
+        self.assertEqual(spec.reasoning_format, "qwen")
+        self.assertTrue(spec.capabilities["tool_calling_supported"])
+
+    def test_vllm_metal_runtime_uses_openai_handler(self) -> None:
+        self.assertIsInstance(
+            get_runtime_handler("vllm-metal"),
+            OpenAICompatRuntimeHandler,
+        )
 
     def test_perf_and_usage_from_llama_timings_uses_native_server_fields(self) -> None:
         perf, usage = _perf_and_usage_from_llama_timings(

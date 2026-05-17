@@ -33,7 +33,11 @@ def build_mlx_openai_app(
     except Exception:  # noqa: BLE001
         model_entry = None
 
-    capabilities = dict(model_entry.get("capabilities", {})) if isinstance(model_entry, dict) else {}
+    capabilities = (
+        dict(model_entry.get("capabilities", {}))
+        if isinstance(model_entry, dict)
+        else {}
+    )
     reasoning_supported = bool(capabilities.get("reasoning_supported", False))
     reasoning_format_raw = capabilities.get("reasoning_format")
     reasoning_format = (
@@ -64,7 +68,9 @@ def build_mlx_openai_app(
         return max(1, len(text.split()))
 
     def encode_prompt(prompt: str) -> mx.array:
-        add_special_tokens = tokenizer.bos_token is None or not prompt.startswith(tokenizer.bos_token)
+        add_special_tokens = tokenizer.bos_token is None or not prompt.startswith(
+            tokenizer.bos_token
+        )
         token_ids = tokenizer.encode(prompt, add_special_tokens=add_special_tokens)
         return mx.array(token_ids)
 
@@ -141,7 +147,9 @@ def build_mlx_openai_app(
                 mode = value
         elif isinstance(req.reasoning, dict):
             raw_effort = req.reasoning.get("effort")
-            effort = str(raw_effort).strip().lower() if isinstance(raw_effort, str) else ""
+            effort = (
+                str(raw_effort).strip().lower() if isinstance(raw_effort, str) else ""
+            )
             if effort in {"none", "off"}:
                 mode = "off"
             elif effort:
@@ -180,7 +188,9 @@ def build_mlx_openai_app(
         if req.raw_prompt and req.raw_prompt.strip():
             return req.raw_prompt
         if not req.messages:
-            raise HTTPException(status_code=400, detail="Either raw_prompt or messages must be provided")
+            raise HTTPException(
+                status_code=400, detail="Either raw_prompt or messages must be provided"
+            )
         messages = [m.model_dump() for m in req.messages]
         kwargs = reasoning_template_kwargs(reasoning_mode)
         try:
@@ -202,11 +212,13 @@ def build_mlx_openai_app(
     def list_models() -> dict[str, Any]:
         return {
             "object": "list",
-            "data": [{
-                "id": model_id,
-                "object": "model",
-                "owned_by": "local",
-            }],
+            "data": [
+                {
+                    "id": model_id,
+                    "object": "model",
+                    "owned_by": "local",
+                }
+            ],
         }
 
     @app.post("/v1/cache/prefill")
@@ -256,7 +268,9 @@ def build_mlx_openai_app(
             with prompt_cache_lock:
                 cache_entry = prompt_cache_store.get(cache_id)
             if cache_entry is None:
-                raise HTTPException(status_code=404, detail=f"Prompt cache not found: {cache_id}")
+                raise HTTPException(
+                    status_code=404, detail=f"Prompt cache not found: {cache_id}"
+                )
             prompt_cache = cache_entry["cache"]
             prompt_cache_prefix_size = int(cache_entry.get("prefix_size", 0) or 0)
             trim_cache_to_size(prompt_cache, prompt_cache_prefix_size)
@@ -290,11 +304,19 @@ def build_mlx_openai_app(
                     text += str(chunk)
                 if first_token_at is None:
                     first_token_at = time.perf_counter()
-                prompt_tokens = max(prompt_tokens, int(getattr(chunk, "prompt_tokens", 0) or 0))
-                completion_tokens = max(completion_tokens, int(getattr(chunk, "generation_tokens", 0) or 0))
+                prompt_tokens = max(
+                    prompt_tokens, int(getattr(chunk, "prompt_tokens", 0) or 0)
+                )
+                completion_tokens = max(
+                    completion_tokens, int(getattr(chunk, "generation_tokens", 0) or 0)
+                )
                 prompt_tps = float(getattr(chunk, "prompt_tps", prompt_tps) or 0.0)
-                generation_tps = float(getattr(chunk, "generation_tps", generation_tps) or 0.0)
-                peak_memory_gb = max(peak_memory_gb, float(getattr(chunk, "peak_memory", 0.0) or 0.0))
+                generation_tps = float(
+                    getattr(chunk, "generation_tps", generation_tps) or 0.0
+                )
+                peak_memory_gb = max(
+                    peak_memory_gb, float(getattr(chunk, "peak_memory", 0.0) or 0.0)
+                )
         finally:
             if req.cache_id and prompt_cache is not None:
                 trim_cache_to_size(prompt_cache, prompt_cache_prefix_size)
@@ -305,7 +327,9 @@ def build_mlx_openai_app(
         if completion_tokens <= 0:
             completion_tokens = safe_token_count(text)
         total_tokens = prompt_tokens + completion_tokens
-        ttft_sec = (first_token_at - started_at) if first_token_at is not None else total_time
+        ttft_sec = (
+            (first_token_at - started_at) if first_token_at is not None else total_time
+        )
 
         now = int(time.time())
         return {
@@ -313,14 +337,16 @@ def build_mlx_openai_app(
             "object": "chat.completion",
             "created": now,
             "model": model_id,
-            "choices": [{
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": text,
-                },
-                "finish_reason": "stop",
-            }],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": text,
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
             "usage": {
                 "prompt_tokens": prompt_tokens,
                 "completion_tokens": completion_tokens,

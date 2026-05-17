@@ -37,11 +37,13 @@ def levenshtein_distance(a: str, b: str) -> int:
         curr = [i]
         for j, char_b in enumerate(b, start=1):
             cost = 0 if char_a == char_b else 1
-            curr.append(min(
-                prev[j] + 1,
-                curr[j - 1] + 1,
-                prev[j - 1] + cost,
-            ))
+            curr.append(
+                min(
+                    prev[j] + 1,
+                    curr[j - 1] + 1,
+                    prev[j - 1] + cost,
+                )
+            )
         prev = curr
     return prev[-1]
 

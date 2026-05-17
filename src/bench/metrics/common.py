@@ -28,7 +28,9 @@ def get_rss_kb_by_pid(pid: int) -> Optional[int]:
         return None
 
 
-def sample_rss_gb(pid: Optional[int] = None, process_pattern: Optional[str] = None) -> Optional[float]:
+def sample_rss_gb(
+    pid: Optional[int] = None, process_pattern: Optional[str] = None
+) -> Optional[float]:
     pids: Set[int] = set()
     if pid is not None and pid_alive(pid):
         pids.add(pid)

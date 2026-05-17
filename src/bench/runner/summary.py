@@ -36,7 +36,11 @@ def _is_benchmark_row(row: Dict[str, Any]) -> bool:
 def _context_label_for_row(row: Dict[str, Any], runtime: str) -> str:
     context_tokens = row.get("context_tokens_target")
     default_context_k = default_context_k_for_runtime(runtime)
-    return f"{int(context_tokens / 1000)}k" if isinstance(context_tokens, int) else f"{default_context_k}k"
+    return (
+        f"{int(context_tokens / 1000)}k"
+        if isinstance(context_tokens, int)
+        else f"{default_context_k}k"
+    )
 
 
 def _is_cache_enabled(row: Dict[str, Any]) -> bool:
@@ -55,13 +59,15 @@ def _weighted_prompt_tps(rows: list[Dict[str, Any]]) -> float:
         prompt_tokens = row_prompt_tokens(row)
         if prompt_tps > 0 and prompt_tokens > 0:
             prompt_tokens_total += prompt_tokens
-            prompt_time_total += (prompt_tokens / prompt_tps)
+            prompt_time_total += prompt_tokens / prompt_tps
     if prompt_tokens_total > 0 and prompt_time_total > 0:
         return prompt_tokens_total / prompt_time_total
     return 0.0
 
 
-def _summary_prompt_tps(rows: list[Dict[str, Any]], prime_rows: list[Dict[str, Any]]) -> float:
+def _summary_prompt_tps(
+    rows: list[Dict[str, Any]], prime_rows: list[Dict[str, Any]]
+) -> float:
     if not rows:
         return 0.0
 
@@ -92,23 +98,41 @@ def _summary_ttft(rows: list[Dict[str, Any]]) -> float:
     return avg(ttft_values)
 
 
-def _summary_prefill_sec(rows: list[Dict[str, Any]], prime_rows: list[Dict[str, Any]]) -> float:
+def _summary_prefill_sec(
+    rows: list[Dict[str, Any]], prime_rows: list[Dict[str, Any]]
+) -> float:
     if prime_rows:
-        return avg([row_prefill_sec(row) for row in prime_rows if row_prefill_sec(row) > 0])
+        return avg(
+            [row_prefill_sec(row) for row in prime_rows if row_prefill_sec(row) > 0]
+        )
 
-    prompt_eval_values = [row_server_prompt_eval_sec(row) for row in rows if row_server_prompt_eval_sec(row) > 0]
+    prompt_eval_values = [
+        row_server_prompt_eval_sec(row)
+        for row in rows
+        if row_server_prompt_eval_sec(row) > 0
+    ]
     if prompt_eval_values:
         return avg(prompt_eval_values)
     return 0.0
 
 
-def runtime_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> list[Dict[str, Any]]:
+def runtime_summary_rows(
+    results: list[Dict[str, Any]], runtimes: list[str]
+) -> list[Dict[str, Any]]:
     rows: list[Dict[str, Any]] = []
-    successful_benchmark = [r for r in results if r.get("success") and _is_benchmark_row(r)]
-    successful_prime = [r for r in results if r.get("success") and not _is_benchmark_row(r)]
+    successful_benchmark = [
+        r for r in results if r.get("success") and _is_benchmark_row(r)
+    ]
+    successful_prime = [
+        r for r in results if r.get("success") and not _is_benchmark_row(r)
+    ]
     for runtime in runtimes:
-        runtime_results = [r for r in successful_benchmark if r.get("runtime") == runtime]
-        runtime_prime_results = [r for r in successful_prime if r.get("runtime") == runtime]
+        runtime_results = [
+            r for r in successful_benchmark if r.get("runtime") == runtime
+        ]
+        runtime_prime_results = [
+            r for r in successful_prime if r.get("runtime") == runtime
+        ]
         if not runtime_results:
             rows.append(
                 {
@@ -128,58 +152,99 @@ def runtime_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> 
             )
             continue
 
-        retrieval_rows = [r for r in runtime_results if row_retrieval_score(r) is not None]
-        retrieval_scores = [float(row_retrieval_score(r) or 0.0) for r in retrieval_rows]
+        retrieval_rows = [
+            r for r in runtime_results if row_retrieval_score(r) is not None
+        ]
+        retrieval_scores = [
+            float(row_retrieval_score(r) or 0.0) for r in retrieval_rows
+        ]
         retrieval_exact_rate = avg(
             [1.0 if bool(row_retrieval_exact(r)) else 0.0 for r in retrieval_rows]
         )
-        retrieval_exact_ci95_half_width = ci95_half_width_for_rate(retrieval_exact_rate, len(retrieval_rows))
+        retrieval_exact_ci95_half_width = ci95_half_width_for_rate(
+            retrieval_exact_rate, len(retrieval_rows)
+        )
 
         rows.append(
             {
                 "runtime": runtime,
                 "count": len(runtime_results),
-                "avg_total_time": round(avg([row_total_time(r) for r in runtime_results]), 3),
+                "avg_total_time": round(
+                    avg([row_total_time(r) for r in runtime_results]), 3
+                ),
                 "avg_tokens_per_second": round(
-                    avg([row_throughput(r, "tokens_per_second") for r in runtime_results]),
+                    avg(
+                        [
+                            row_throughput(r, "tokens_per_second")
+                            for r in runtime_results
+                        ]
+                    ),
                     3,
                 ),
-                "avg_prompt_tps": round(_summary_prompt_tps(runtime_results, runtime_prime_results), 3),
+                "avg_prompt_tps": round(
+                    _summary_prompt_tps(runtime_results, runtime_prime_results), 3
+                ),
                 "avg_generation_tps": round(
                     avg([row_throughput(r, "generation_tps") for r in runtime_results]),
                     3,
                 ),
-                "avg_prefill_sec": round(_summary_prefill_sec(runtime_results, runtime_prime_results), 3),
+                "avg_prefill_sec": round(
+                    _summary_prefill_sec(runtime_results, runtime_prime_results), 3
+                ),
                 "avg_ttft_sec": round(_summary_ttft(runtime_results), 3),
-                "avg_memory_gb": round(avg([row_peak_memory(r) for r in runtime_results]), 3),
+                "avg_memory_gb": round(
+                    avg([row_peak_memory(r) for r in runtime_results]), 3
+                ),
                 "avg_retrieval_score_float": round(avg(retrieval_scores), 3),
                 "retrieval_exact_rate": round(retrieval_exact_rate, 3),
-                "retrieval_exact_ci95_half_width": round(retrieval_exact_ci95_half_width, 3),
+                "retrieval_exact_ci95_half_width": round(
+                    retrieval_exact_ci95_half_width, 3
+                ),
             }
         )
     return rows
 
 
-def runtime_context_summary_rows(results: list[Dict[str, Any]], runtimes: list[str]) -> list[Dict[str, Any]]:
+def runtime_context_summary_rows(
+    results: list[Dict[str, Any]], runtimes: list[str]
+) -> list[Dict[str, Any]]:
     rows: list[Dict[str, Any]] = []
-    successful_benchmark = [r for r in results if r.get("success") and _is_benchmark_row(r)]
-    successful_prime = [r for r in results if r.get("success") and not _is_benchmark_row(r)]
+    successful_benchmark = [
+        r for r in results if r.get("success") and _is_benchmark_row(r)
+    ]
+    successful_prime = [
+        r for r in results if r.get("success") and not _is_benchmark_row(r)
+    ]
     for runtime in runtimes:
-        runtime_results = [r for r in successful_benchmark if r.get("runtime") == runtime]
-        runtime_prime_results = [r for r in successful_prime if r.get("runtime") == runtime]
+        runtime_results = [
+            r for r in successful_benchmark if r.get("runtime") == runtime
+        ]
+        runtime_prime_results = [
+            r for r in successful_prime if r.get("runtime") == runtime
+        ]
         context_groups: Dict[str, list[Dict[str, Any]]] = {}
         for row in runtime_results:
             label = _context_label_for_row(row, runtime)
             context_groups.setdefault(label, []).append(row)
 
-        for context_label, group in sorted(context_groups.items(), key=lambda item: item[0]):
-            prime_group = [r for r in runtime_prime_results if _context_label_for_row(r, runtime) == context_label]
+        for context_label, group in sorted(
+            context_groups.items(), key=lambda item: item[0]
+        ):
+            prime_group = [
+                r
+                for r in runtime_prime_results
+                if _context_label_for_row(r, runtime) == context_label
+            ]
             retrieval_rows = [r for r in group if row_retrieval_score(r) is not None]
-            retrieval_scores = [float(row_retrieval_score(r) or 0.0) for r in retrieval_rows]
+            retrieval_scores = [
+                float(row_retrieval_score(r) or 0.0) for r in retrieval_rows
+            ]
             retrieval_exact_rate = avg(
                 [1.0 if bool(row_retrieval_exact(r)) else 0.0 for r in retrieval_rows]
             )
-            retrieval_exact_ci95_half_width = ci95_half_width_for_rate(retrieval_exact_rate, len(retrieval_rows))
+            retrieval_exact_ci95_half_width = ci95_half_width_for_rate(
+                retrieval_exact_rate, len(retrieval_rows)
+            )
 
             rows.append(
                 {
@@ -196,12 +261,16 @@ def runtime_context_summary_rows(results: list[Dict[str, Any]], runtimes: list[s
                         avg([row_throughput(r, "generation_tps") for r in group]),
                         3,
                     ),
-                    "avg_prefill_sec": round(_summary_prefill_sec(group, prime_group), 3),
+                    "avg_prefill_sec": round(
+                        _summary_prefill_sec(group, prime_group), 3
+                    ),
                     "avg_ttft_sec": round(_summary_ttft(group), 3),
                     "avg_memory_gb": round(avg([row_peak_memory(r) for r in group]), 3),
                     "avg_retrieval_score_float": round(avg(retrieval_scores), 3),
                     "retrieval_exact_rate": round(retrieval_exact_rate, 3),
-                    "retrieval_exact_ci95_half_width": round(retrieval_exact_ci95_half_width, 3),
+                    "retrieval_exact_ci95_half_width": round(
+                        retrieval_exact_ci95_half_width, 3
+                    ),
                 }
             )
     return rows
@@ -243,7 +312,9 @@ def write_summary_reports(
         if case_contexts:
             contexts_k = case_contexts
         else:
-            contexts_k = sorted({default_context_k_for_runtime(runtime) for runtime in runtimes})
+            contexts_k = sorted(
+                {default_context_k_for_runtime(runtime) for runtime in runtimes}
+            )
 
     resolved_models = sorted(
         {
@@ -413,14 +484,23 @@ def write_summary_reports(
     lines.append(
         "| Runtime | Model | Phase | Case | Context | Time (s) | Tok/s | Prompt tps | Gen tps | Prefill (s) | TTFT (s) | Peak RAM (GB) | Retrieval score | Retrieval exact | Cache used | Status |"
     )
-    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|")
+    lines.append(
+        "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|"
+    )
 
     for row in results_sorted:
         runtime = str(row.get("runtime", ""))
         context_label = _context_label_for_row(row, runtime)
-        status = "ok" if row.get("success") else f"error: {str(row.get('error', 'unknown'))[:80]}"
+        status = (
+            "ok"
+            if row.get("success")
+            else f"error: {str(row.get('error', 'unknown'))[:80]}"
+        )
         cache = row.get("cache") if isinstance(row.get("cache"), dict) else {}
-        phase = str(row.get("phase") or ("benchmark" if _is_benchmark_row(row) else "cache-prime"))
+        phase = str(
+            row.get("phase")
+            or ("benchmark" if _is_benchmark_row(row) else "cache-prime")
+        )
         lines.append(
             f"| {runtime or '-'} | {row.get('model', '-')} | {phase} | {row.get('case_name', '-')} | "
             f"{context_label} | {row_total_time(row):.2f} | {row_throughput(row, 'tokens_per_second'):.2f} | "

@@ -5,6 +5,8 @@ model := env_var_or_default("HUGGINGFACE_MODEL", "optiq")
 host := env_var_or_default("HOST", "127.0.0.1")
 mlx_port := env_var_or_default("MLX_PORT", "8000")
 optiq_port := env_var_or_default("OPTIQ_PORT", "8080")
+vllm_port := env_var_or_default("VLLM_PORT", "8000")
+embedding_port := env_var_or_default("QWEN_EMBEDDING_PORT", "8001")
 
 help:
     @echo "Just commands:"
@@ -13,6 +15,9 @@ help:
     @echo "    aliases: optiq/optiq-9b, opus/opus-27b, claw/claw-27b"
     @echo "  just mlx <start|stop|status> [model]"
     @echo "  just optiq <start|stop|status> [model]"
+    @echo "  just vllm-metal"
+    @echo "  just qwen-embeddings"
+    @echo "  just probe-openai"
     @echo "  just stop-all"
     @echo "  just test <mlx|optiq|all> [model]"
     @echo "  just bench [args...]"
@@ -34,6 +39,15 @@ optiq action model=model:
       status) uv run mlx-openai-optiq-server status ;; \
       *) echo "Invalid action '{{action}}'. Use start|stop|status." >&2; exit 2 ;; \
     esac
+
+vllm-metal:
+    @scripts/start-vllm-metal-qwen36.sh
+
+qwen-embeddings:
+    @scripts/start-qwen3-embedding-llama.cpp.sh
+
+probe-openai:
+    @OPENAI_BASE_URL="http://{{host}}:{{vllm_port}}/v1" OPENAI_EMBEDDINGS_BASE_URL="http://{{host}}:{{embedding_port}}/v1" scripts/probe-openai-local.sh
 
 stop-all:
     @just mlx stop || true
