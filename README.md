@@ -21,7 +21,7 @@ plus OpenAI-compatible endpoints for devcontainers.
 
 ### Usage Guides
 - 🔧 [`docs/models/Qwen.md`](docs/models/Qwen.md) – Qwen model lineup, TurboQuant cache, and inference presets.
-- 🔧 [`docs/clients/QwenCode.md`](docs/clients/QwenCode.md) – Point QwenCode at the Optiq/MLX endpoints.
+- 🔧 [`docs/clients/QwenCode.md`](docs/clients/QwenCode.md) – Point QwenCode at the local vLLM-Metal endpoint.
 - 🔧 [`docs/clients/OpenCode.md`](docs/clients/OpenCode.md) – Configure OpenCode providers for the local runtimes.
 - 🔧 [`docs/clients/CCR.md`](docs/clients/CCR.md) – Claude Code Router routing notes for the local endpoints.
 

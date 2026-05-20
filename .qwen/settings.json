@@ -6,9 +6,22 @@
   "modelProviders": {
     "openai": [
       {
-        "id": "local-qwen35-9b-optiq",
-        "name": "local-qwen35-9b-optiq",
-        "baseUrl": "http://127.0.0.1:8080/v1",
+        "id": "qwen3.6-35b-a3b",
+        "name": "Qwen3.6-35B-A3B vLLM-Metal Host",
+        "baseUrl": "http://127.0.0.1:8000/v1",
+        "envKey": "LLM_API_KEY",
+        "generationConfig": {
+          "contextWindowSize": 32768,
+          "samplingParams": {
+            "temperature": 0.2,
+            "max_tokens": 2048
+          }
+        }
+      },
+      {
+        "id": "qwen3.6-35b-a3b",
+        "name": "Qwen3.6-35B-A3B vLLM-Metal Devcontainer",
+        "baseUrl": "http://host.docker.internal:8000/v1",
         "envKey": "LLM_API_KEY",
         "generationConfig": {
           "contextWindowSize": 32768,
@@ -20,5 +33,5 @@
       }
     ]
   },
-  "model": "local-qwen35-9b-optiq"
+  "model": "qwen3.6-35b-a3b"
 }

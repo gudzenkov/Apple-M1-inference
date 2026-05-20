@@ -66,6 +66,6 @@ Add this provider block to `~/.config/opencode/opencode.json` if you want an exp
 
 ## Tips
 
-- Keep the MLX server running in the background; OpenCode will attempt to connect each time you switch models.
+- Keep the vLLM-Metal server running in the background; OpenCode will attempt to connect each time you switch models.
 - Use at least 16K context for agentic workflows.
 - Set temperature to `0.2-0.7` for balanced creativity/accuracy.

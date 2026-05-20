@@ -8,7 +8,7 @@ Copy the shipped settings into your home directory:
 ```bash
 cp .qwen/settings.json ~/.qwen/settings.json
 ```
-If you run QwenCode on the host, use `http://127.0.0.1:8000/v1`. From a devcontainer, use `http://host.docker.internal:8000/v1`.
+The shipped settings define the same served model ID, `qwen3.6-35b-a3b`, for both host and devcontainer base URLs. Use the host entry with `http://127.0.0.1:8000/v1`; from a devcontainer, select the entry with `http://host.docker.internal:8000/v1`.
 
 ## Manual setup
 

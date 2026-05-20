@@ -64,10 +64,10 @@ Adjust `max_tokens` per prompt (a default of 1024 works for most completions) an
 
 ## Tips
 
-- Keep the MLX/Optiq server running and tail `logs/mlx-server.log` or `logs/mlx-optiq-server.log` for request visibility.
+- Keep the vLLM-Metal server running for agent workflows; use MLX/Optiq only for explicit benchmark experiments.
 - For Qwen3.6-35B-A3B agent workflows, prefer `scripts/start-vllm-metal-qwen36.sh` and validate tool calls before long runs.
 - For embeddings, prefer `scripts/start-qwen3-embedding-llama.cpp.sh` and probe `/v1/embeddings` directly.
-- Use `curl http://localhost:8000/v1/models` (MLX server) or `http://localhost:8080/v1/models` (Optiq server) to sanity-check readiness before connecting any client.
+- Use `curl http://localhost:8000/v1/models` for the recommended vLLM-Metal endpoint, or `http://localhost:8080/v1/models` only when running the legacy Optiq server.
 - The TurboQuant server uses a fixed seed per layer to keep compression deterministic; avoid restarting the process too frequently if you need consistent caches.
 
 ## Resources
