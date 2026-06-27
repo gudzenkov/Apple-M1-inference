@@ -18,6 +18,7 @@ MAX_NUM_BATCHED_TOKENS="${VLLM_MAX_NUM_BATCHED_TOKENS:-${MAX_NUM_BATCHED_TOKENS:
 LANGUAGE_MODEL_ONLY="${VLLM_LANGUAGE_MODEL_ONLY:-true}"
 
 export HF_HUB_DISABLE_XET="${HF_HUB_DISABLE_XET:-1}"
+export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 export VLLM_METAL_MEMORY_FRACTION="${VLLM_METAL_MEMORY_FRACTION:-0.50}"
 export VLLM_METAL_MULTIMODAL_MODE="${VLLM_METAL_MULTIMODAL_MODE:-text-only-compat}"
 
@@ -39,6 +40,7 @@ args=(
 	--max-model-len "${MAX_MODEL_LEN}"
 	--max-num-seqs "${MAX_NUM_SEQS}"
 	--max-num-batched-tokens "${MAX_NUM_BATCHED_TOKENS}"
+	--generation-config vllm
 	--reasoning-parser qwen3
 	--enable-auto-tool-choice
 	--tool-call-parser qwen3_coder

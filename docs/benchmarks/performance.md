@@ -256,5 +256,5 @@ jq -s 'group_by(.runtime) | map({runtime: .[0].runtime, avg_peak_ram_gb: (map(.m
 
 ## Resources
 
-- [MLX server runbook](../servers/MLX.md)
-- [Benchmark CLI](../../src/cli/benchmark.py)
+- [MLX server runbook](./../servers/MLX.md)
+- [Benchmark CLI](./../../src/cli/benchmark.py)

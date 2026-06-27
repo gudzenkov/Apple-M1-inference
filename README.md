@@ -9,6 +9,7 @@ plus OpenAI-compatible endpoints for devcontainers.
 |--------|-------|-----|-------|
 | **vLLM-Metal** | Primary Qwen3.6-35B-A3B chat/tools/thinking server | 48GB+ | Best fit for Qwen3.6 MoE on Mac when you need OpenAI-compatible tool calls and reasoning output |
 | **llama.cpp** | Qwen3 embeddings and GGUF fallback | 2GB+ | Mature `/v1/embeddings`; use 0.6B on port 8001 when 35B chat also runs |
+| **LM Studio** | Local OpenAI-compatible chat or embeddings server | model-dependent | Easiest manual local server; useful when you already loaded the model in LM Studio |
 | **MLX** | Existing MLX/OptiQ experiments | 24GB+ | Useful for custom MLX serving and long-context experiments; weaker native tool-call surface than vLLM |
 
 ## Documentation
@@ -16,6 +17,7 @@ plus OpenAI-compatible endpoints for devcontainers.
 ### Inference Server Guides
 - 📕 [`docs/servers/VLLM-Metal.md`](docs/servers/VLLM-Metal.md) – Recommended Qwen3.6-35B-A3B 4-bit DWQ chat/tools/thinking server on Apple Silicon.
 - 📗 [`docs/servers/llama.cpp.md`](docs/servers/llama.cpp.md) – Qwen3 embedding server and GGUF fallback commands.
+- 📔 [`docs/servers/LM-Studio.md`](docs/servers/LM-Studio.md) – Local LM Studio OpenAI-compatible server option for chat or embeddings.
 - 📘 [`docs/servers/MLX.md`](docs/servers/MLX.md) – MLX setup, server workflows, and troubleshooting.
 - 📙 [`docs/servers/devcontainer.md`](docs/servers/devcontainer.md) – Run Qwen on macOS host and connect it from Orb/Docker Desktop devcontainers.
 
@@ -33,6 +35,14 @@ plus OpenAI-compatible endpoints for devcontainers.
 1. **For agentic Qwen3.6-35B-A3B work, start vLLM-Metal on macOS host.** It exposes OpenAI-compatible chat on `http://127.0.0.1:8000/v1` with Qwen reasoning and tool-call parsers enabled.
 2. **For Qwen3 embeddings, start llama.cpp separately.** The default is `Qwen3-Embedding-0.6B-Q8_0`, exposed as OpenAI-compatible embeddings on `http://127.0.0.1:8001/v1`.
 3. **From a devcontainer, use `host.docker.internal`.** The matching URLs are `http://host.docker.internal:8000/v1` and `http://host.docker.internal:8001/v1`.
+
+## Local model pair
+
+Recommended local setup:
+
+- Chat LLM: `qwen3.6-35b-a3b` served by vLLM-Metal on `http://127.0.0.1:8000/v1`
+- Embeddings: `qwen3-embedding` served by llama.cpp on `http://127.0.0.1:8001/v1`
+- Alternative local server: LM Studio on `http://127.0.0.1:1234/v1` for either chat or embeddings, depending on the loaded model
 
 ## Tooling & layout
 

@@ -46,7 +46,7 @@ Add this provider block to `~/.config/opencode/opencode.json` if you want an exp
 ```
 
 ### Usage
-1. Start the vLLM-Metal server (see [vLLM-Metal Qwen3.6 Server](../servers/VLLM-Metal.md)).
+1. Start the vLLM-Metal server (see [vLLM-Metal Qwen3.6 Server](./../servers/VLLM-Metal.md)).
 2. Restart OpenCode.
 3. Select "Qwen Local" from the model dropdown.
 4. Start coding with local AI assistance.

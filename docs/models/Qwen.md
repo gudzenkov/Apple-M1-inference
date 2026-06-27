@@ -36,6 +36,7 @@ OptiQ models can leverage `mlx-optiq` to compress the KV cache to roughly 1/5 of
 ### Recommended split endpoint
 - `vllm-metal` serves Qwen3.6-35B-A3B 4-bit DWQ chat, thinking, and tool-call parsing on `:8000`.
 - `llama.cpp` serves Qwen3 embeddings on `:8001`; default to 0.6B when Qwen3.6-35B-A3B is also resident.
+- LM Studio can serve either local chat or local embeddings on `:1234`; use the exact model name returned by `/v1/models`.
 - Devcontainers call these through `http://host.docker.internal:8000/v1` and `http://host.docker.internal:8001/v1`.
 
 This is the preferred setup for agent clients that expect OpenAI-compatible APIs.
@@ -52,6 +53,13 @@ This is the preferred setup for agent clients that expect OpenAI-compatible APIs
 
 Switch between the two by changing the base URL in your OpenAI-compatible client.
 
+### LM Studio server
+- Best for quick local runs when the model is already loaded in LM Studio.
+- Default OpenAI-compatible base URL: `http://127.0.0.1:1234/v1`.
+- From devcontainers, use `http://host.docker.internal:1234/v1`.
+- Verify the served model name with `curl http://127.0.0.1:1234/v1/models` before configuring clients.
+- Use LM Studio as a chat endpoint or an embedding endpoint based on the loaded model; do not assume one loaded model can do both.
+
 ## Inference parameters
 
 Pick the right sampling profile for the task:
@@ -67,6 +75,7 @@ Adjust `max_tokens` per prompt (a default of 1024 works for most completions) an
 - Keep the vLLM-Metal server running for agent workflows; use MLX/Optiq only for explicit benchmark experiments.
 - For Qwen3.6-35B-A3B agent workflows, prefer `scripts/start-vllm-metal-qwen36.sh` and validate tool calls before long runs.
 - For embeddings, prefer `scripts/start-qwen3-embedding-llama.cpp.sh` and probe `/v1/embeddings` directly.
+- For LM Studio, start the server in the app, then probe `/v1/models` and the exact endpoint you need before wiring a client.
 - Use `curl http://localhost:8000/v1/models` for the recommended vLLM-Metal endpoint, or `http://localhost:8080/v1/models` only when running the legacy Optiq server.
 - The TurboQuant server uses a fixed seed per layer to keep compression deterministic; avoid restarting the process too frequently if you need consistent caches.
 
@@ -75,4 +84,5 @@ Adjust `max_tokens` per prompt (a default of 1024 works for most completions) an
 - `docs/servers/MLX.md` – server launch commands, monitoring, troubleshooting.
 - `docs/servers/VLLM-Metal.md` – recommended Qwen3.6-35B-A3B chat/tools/thinking server.
 - `docs/servers/llama.cpp.md` – Qwen3 embedding server.
+- `docs/servers/LM-Studio.md` – LM Studio local OpenAI-compatible server.
 - `docs/benchmarks/performance.md` – benchmark workflow for MLX and MLX-Optiq.
